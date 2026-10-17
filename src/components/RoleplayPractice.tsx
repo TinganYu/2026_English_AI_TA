@@ -225,7 +225,9 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       (window as Window & { webkitSpeechRecognition?: SpeechRecognitionConstructor }).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      setSttError('此瀏覽器不支援即時語音辨識；仍可使用錄音與播放功能。建議使用最新版 Chrome 或 Edge。');
+      setSttError(
+        '此瀏覽器不支援即時語音辨識；仍可使用錄音與播放功能。建議使用最新版 Chrome 或 Edge。 | Real-time speech recognition is not supported by this browser. You can still record and play your voice. Try the latest version of Chrome or Edge.'
+      );
       setShowScoringFallback(true);
       return;
     }
@@ -263,14 +265,15 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
         const recoverableError = event.error === 'no-speech';
         speechRecognitionErrorRef.current = !recoverableError;
         const errorMessage: Record<string, string> = {
-          'audio-capture': '手機無法同時使用語音辨識與錄音功能。請改用「只測試 STT（不錄音）」、改用電腦，或只使用錄音功能。',
-          'no-speech': '手機沒有收到清楚的語音，請靠近麥克風後再試一次。',
-          'not-allowed': '手機拒絕語音辨識權限；請在瀏覽器網站設定中允許麥克風。若仍無法使用，請改用「只測試 STT（不錄音）」或電腦。',
-          'service-not-allowed': '此手機瀏覽器不允許使用語音辨識服務，請改用「只測試 STT（不錄音）」或電腦 Chrome/Edge。',
-          network: '手機無法連線到語音辨識服務；請確認網路連線，或改用電腦 Chrome/Edge。',
+          'audio-capture': '手機無法同時使用語音辨識與錄音功能。請改用「只測試 STT（不錄音）」、改用電腦，或只使用錄音功能。 | This phone cannot use speech recognition and recording at the same time. Try STT-only mode, use a computer, or use recording only.',
+          'no-speech': '手機沒有收到清楚的語音，請靠近麥克風後再試一次。 | No clear speech was detected. Move closer to the microphone and try again.',
+          'not-allowed': '手機拒絕語音辨識權限；請在瀏覽器網站設定中允許麥克風。若仍無法使用，請改用「只測試 STT（不錄音）」或電腦。 | Speech recognition permission was denied. Allow microphone access in your browser settings. If it still does not work, try STT-only mode or use a computer.',
+          'service-not-allowed': '此手機瀏覽器不允許使用語音辨識服務，請改用「只測試 STT（不錄音）」或電腦 Chrome/Edge。 | This mobile browser does not allow the speech recognition service. Try STT-only mode or Chrome/Edge on a computer.',
+          network: '手機無法連線到語音辨識服務；請確認網路連線，或改用電腦 Chrome/Edge。 | The phone could not connect to the speech recognition service. Check your network or try Chrome/Edge on a computer.',
         };
         setSttError(
-          errorMessage[event.error] || `語音辨識暫時無法使用：${event.error}`
+          errorMessage[event.error] ||
+          `語音辨識暫時無法使用：${event.error} | Speech recognition is temporarily unavailable: ${event.error}`
         );
         setShowScoringFallback(true);
       }
@@ -299,7 +302,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
         !finalTranscriptRef.current.trim()
       ) {
         setSttError(
-          '手機的語音辨識已暫停。請繼續說話，或重新按下 STT 按鈕；若使用錄音模式，建議改用「只測試 STT（不錄音）」或電腦。'
+          '手機的語音辨識已暫停。請繼續說話，或重新按下 STT 按鈕；若使用錄音模式，建議改用「只測試 STT（不錄音）」或電腦。 | Speech recognition paused. Keep speaking or press the STT button again. If you are recording, try STT-only mode or use a computer.'
         );
       }
     };
@@ -309,7 +312,9 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       recognition.start();
       setIsListening(true);
     } catch {
-      setSttError('語音辨識無法啟動；仍可使用錄音與播放功能。');
+      setSttError(
+        '語音辨識無法啟動；仍可使用錄音與播放功能。 | Speech recognition could not start. You can still record and play your voice.'
+      );
       setShowScoringFallback(true);
     }
   };
@@ -930,22 +935,24 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
               <>
               {showScoringFallback && isStudentTurn && (
                 <div className="w-full rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
-                  <p className="font-semibold">Speech recognition isn’t available right now.</p>
+                  <p className="font-semibold">
+                    語音辨識目前無法使用。Speech recognition isn’t available right now.
+                  </p>
                   <p className="mt-1 text-sm">
-                    You can still record, listen to yourself, and continue without a score.
+                    你仍可錄音、聆聽自己的聲音，並在不評分的情況下繼續練習。You can still record, listen to yourself, and continue without a score.
                   </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       onClick={handleRetryRecognition}
                       className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
                     >
-                      Try again
+                      再試一次 · Try again
                     </button>
                     <button
                       onClick={handlePracticeWithoutScoring}
                       className="rounded-lg border border-amber-400 bg-white px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100"
                     >
-                      Practice without scoring
+                      不評分練習 · Practice without scoring
                     </button>
                   </div>
                 </div>
