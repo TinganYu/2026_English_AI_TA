@@ -44,12 +44,16 @@ interface RoleplayPracticeProps {
   lines: DialogueLine[];
   onPlayLineAudio: (line: DialogueLine) => Promise<void>;
   isGeneratingAudio: boolean;
+  isAudioPlaying: boolean;
+  playingLineIndex: number;
 }
 
 export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   lines,
   onPlayLineAudio,
   isGeneratingAudio,
+  isAudioPlaying,
+  playingLineIndex,
 }) => {
   const [selectedRole, setSelectedRole] = useState<'Alex' | 'Emma'>('Emma');
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -86,6 +90,8 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
 
   const currentLine = lines[currentStepIndex];
   const isStudentTurn = currentLine?.speaker === selectedRole;
+  const isCurrentLineAudioPlaying =
+    isAudioPlaying && playingLineIndex === currentStepIndex;
   const partnerRole = selectedRole === 'Alex' ? 'Emma' : 'Alex';
   const normalizeToken = (value: string) => {
     const normalized = value.toLowerCase().replace(/[^a-z0-9']/g, '');
@@ -498,12 +504,18 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   };
 
   const handleAdvanceStep = () => {
+    if (isCurrentLineAudioPlaying) {
+      setSttError('請等示範音檔播放完畢後，再進入下一句。');
+      return;
+    }
     if (isStudentTurn && practiceScore < 50) {
       setSttError('目前未達 50%，請再試一次或點擊紅色文字練習。');
       return;
     }
     if (currentStepIndex >= lines.length - 1) {
-      setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
+      if (isStudentTurn) {
+        setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
+      }
       setShowCompletion(true);
       stopActiveCapture();
       return;
@@ -906,7 +918,8 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
             <button
               onClick={handleAdvanceStep}
               disabled={
-                (currentStepIndex >= lines.length - 1 && !practicePassed) ||
+                isCurrentLineAudioPlaying ||
+                (currentStepIndex >= lines.length - 1 && isStudentTurn && !practicePassed) ||
                 (isStudentTurn && !practicePassed)
               }
               className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-30 disabled:hover:bg-violet-600 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-violet-600/30 transition-colors ml-auto"

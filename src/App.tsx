@@ -426,6 +426,8 @@ export default function App() {
             lines={script.lines}
             onPlayLineAudio={(line) => playLine(line, script.lines.findIndex((l) => l.id === line.id), false)}
             isGeneratingAudio={isLoadingAudio}
+            isAudioPlaying={isPlaying}
+            playingLineIndex={currentLineIndex}
           />
         )}
 
