@@ -1,0 +1,8 @@
+{
+  "name": "A2 English Book Dialogue & TTS Practice",
+  "description": "Interactive A2-level English dialogue on book genres and reading habits with slow dual-speaker TTS powered by Gemini 3.8 Flash TTS.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,50 @@
+{
+  "line-1": {
+    "file": "line-1.wav",
+    "text": "Hi Emma! What book are you reading on your tablet right now?",
+    "voice": "am_puck",
+    "speed": 1
+  },
+  "line-2": {
+    "file": "line-2.wav",
+    "text": "I am reading a science fiction story about space travel. What book genre do you like most, Alex?",
+    "voice": "af_heart",
+    "speed": 1
+  },
+  "line-3": {
+    "file": "line-3.wav",
+    "text": "I really love mystery novels. I like trying to solve the puzzle before the ending!",
+    "voice": "am_puck",
+    "speed": 1
+  },
+  "line-4": {
+    "file": "line-4.wav",
+    "text": "That sounds fun! But I notice you always carry a thick paper book. Why not use an e-reader?",
+    "voice": "af_heart",
+    "speed": 1
+  },
+  "line-5": {
+    "file": "line-5.wav",
+    "text": "Because physical books give me a calm experience. I love the smell of paper, and I can rest my eyes from screens.",
+    "voice": "am_puck",
+    "speed": 1
+  },
+  "line-6": {
+    "file": "line-6.wav",
+    "text": "I see! For me, a digital e-reader is very light and easy to hold. I can carry fifty books on the train every morning.",
+    "voice": "af_heart",
+    "speed": 1
+  },
+  "line-7": {
+    "file": "line-7.wav",
+    "text": "That is true! So our different habits change how we enjoy reading. I read to slow down, and you read anywhere on the go.",
+    "voice": "am_puck",
+    "speed": 1
+  },
+  "line-8": {
+    "file": "line-8.wav",
+    "text": "Exactly! The stories are magical, whether they are printed on paper or shown on a screen.",
+    "voice": "af_heart",
+    "speed": 1
+  }
+}
