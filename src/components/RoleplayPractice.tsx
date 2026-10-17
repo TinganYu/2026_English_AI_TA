@@ -96,6 +96,27 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   };
   const expandTokens = (text: string) =>
     text.split(/\s+/).flatMap((word) => normalizeToken(word).split(/\s+/)).filter(Boolean);
+  const removeTranscriptOverlap = (confirmed: string, interim: string) => {
+    const confirmedWords = confirmed.trim().split(/\s+/).filter(Boolean);
+    const interimWords = interim.trim().split(/\s+/).filter(Boolean);
+    const maxOverlap = Math.min(confirmedWords.length, interimWords.length);
+
+    for (let overlap = maxOverlap; overlap > 0; overlap -= 1) {
+      const confirmedSuffix = confirmedWords.slice(-overlap).join(' ').toLowerCase();
+      const interimPrefix = interimWords.slice(0, overlap).join(' ').toLowerCase();
+      if (confirmedSuffix === interimPrefix) {
+        return interimWords.slice(overlap).join(' ');
+      }
+    }
+
+    return interim.trim();
+  };
+  const mergeTranscriptParts = (parts: string[]) =>
+    parts.reduce((combined, part) => {
+      const nextPart = part.trim();
+      if (!nextPart) return combined;
+      return `${combined} ${removeTranscriptOverlap(combined, nextPart)}`.trim();
+    }, '');
   const targetTokens = expandTokens(currentLine?.text || '');
   const recognizedTokens = expandTokens(transcript);
   const matchingPairs = targetTokens.reduce<Array<{ targetIndex: number; recognizedIndex: number }>>(
@@ -206,14 +227,15 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
           interimText += `${resultText} `;
         }
       }
-      finalTranscriptRef.current = Object.keys(finalResultsRef.current)
-        .sort((a, b) => Number(a) - Number(b))
-        .map((index) => finalResultsRef.current[Number(index)])
-        .filter(Boolean)
-        .join(' ')
-        .trim();
+      finalTranscriptRef.current = mergeTranscriptParts(
+        Object.keys(finalResultsRef.current)
+          .sort((a, b) => Number(a) - Number(b))
+          .map((index) => finalResultsRef.current[Number(index)])
+      );
       setTranscript(finalTranscriptRef.current);
-      setInterimTranscript(interimText.trim());
+      setInterimTranscript(
+        removeTranscriptOverlap(finalTranscriptRef.current, interimText)
+      );
     };
     recognition.onerror = (event) => {
       if (event.error !== 'aborted') {
