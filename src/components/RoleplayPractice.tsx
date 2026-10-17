@@ -78,6 +78,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const animationFrameRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<any>(null);
   const finalTranscriptRef = useRef('');
+  const finalResultsRef = useRef<Record<number, string>>({});
   const speechRecognitionErrorRef = useRef(false);
 
   const currentLine = lines[currentStepIndex];
@@ -191,21 +192,26 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
 
     const recognition = new SpeechRecognition();
     speechRecognitionErrorRef.current = false;
+    finalResultsRef.current = {};
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
     recognition.onresult = (event) => {
-      let finalText = '';
       let interimText = '';
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
         const resultText = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          finalText += `${resultText} `;
+          finalResultsRef.current[i] = resultText.trim();
         } else {
           interimText += `${resultText} `;
         }
       }
-      finalTranscriptRef.current = `${finalTranscriptRef.current} ${finalText}`.trim();
+      finalTranscriptRef.current = Object.keys(finalResultsRef.current)
+        .sort((a, b) => Number(a) - Number(b))
+        .map((index) => finalResultsRef.current[Number(index)])
+        .filter(Boolean)
+        .join(' ')
+        .trim();
       setTranscript(finalTranscriptRef.current);
       setInterimTranscript(interimText.trim());
     };
@@ -213,11 +219,11 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       if (event.error !== 'aborted') {
         speechRecognitionErrorRef.current = true;
         const errorMessage: Record<string, string> = {
-          'audio-capture': '手機的語音辨識服務無法取得麥克風；錄音仍可能正常保存。',
+          'audio-capture': '手機無法同時使用語音辨識與錄音功能。請改用「只測試 STT（不錄音）」、改用電腦，或只使用錄音功能。',
           'no-speech': '手機沒有收到清楚的語音，請靠近麥克風後再試一次。',
-          'not-allowed': '手機拒絕語音辨識權限；請在瀏覽器網站設定中允許麥克風與語音辨識。',
-          'service-not-allowed': '此手機瀏覽器不允許使用語音辨識服務，請改用最新版 Chrome 或 Safari。',
-          network: '手機無法連線到語音辨識服務；請確認網路連線後再試一次。',
+          'not-allowed': '手機拒絕語音辨識權限；請在瀏覽器網站設定中允許麥克風。若仍無法使用，請改用「只測試 STT（不錄音）」或電腦。',
+          'service-not-allowed': '此手機瀏覽器不允許使用語音辨識服務，請改用「只測試 STT（不錄音）」或電腦 Chrome/Edge。',
+          network: '手機無法連線到語音辨識服務；請確認網路連線，或改用電腦 Chrome/Edge。',
         };
         setSttError(
           errorMessage[event.error] || `語音辨識暫時無法使用：${event.error}`
@@ -235,7 +241,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
         !finalTranscriptRef.current.trim()
       ) {
         setSttError(
-          '手機語音辨識已提前結束，但錄音仍在進行。這通常是手機瀏覽器的 STT 限制，請停止錄音後改用電腦 Chrome/Edge，或使用錄音回放功能。'
+          '手機無法同時使用語音辨識與錄音功能，因此語音辨識已停止。請改用「只測試 STT（不錄音）」進行辨識，或改用電腦；如需保存聲音，仍可使用錄音功能。'
         );
       }
     };
