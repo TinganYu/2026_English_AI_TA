@@ -3,6 +3,10 @@
         "/^npm run build$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "/^npm run lint$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     }
 }

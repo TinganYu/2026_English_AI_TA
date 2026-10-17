@@ -67,6 +67,8 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const [isListening, setIsListening] = useState(false);
   const [sttError, setSttError] = useState<string | null>(null);
   const [completedScores, setCompletedScores] = useState<Record<number, number>>({});
+  const [unscoredTurns, setUnscoredTurns] = useState<Record<number, boolean>>({});
+  const [showScoringFallback, setShowScoringFallback] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const isRecordingRef = useRef(false);
@@ -148,30 +150,38 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const studentLineIndexes = lines
     .map((line, index) => (line.speaker === selectedRole ? index : -1))
     .filter((index) => index >= 0);
-  const completedStudentScores = studentLineIndexes
-    .map((index) => completedScores[index])
-    .filter((score): score is number => typeof score === 'number');
+  const completedStudentTurns = studentLineIndexes.filter(
+    (index) => typeof completedScores[index] === 'number' || unscoredTurns[index]
+  );
   const overallScores = studentLineIndexes
-    .map((index) => (index === currentStepIndex ? practiceScore : completedScores[index]))
+    .map((index) =>
+      index === currentStepIndex && !unscoredTurns[index]
+        ? practiceScore
+        : completedScores[index]
+    )
     .filter((score): score is number => typeof score === 'number');
-  const studentScoreRows = studentLineIndexes
-    .map((index) => ({
-      index,
-      line: lines[index],
-      score: index === currentStepIndex ? practiceScore : completedScores[index],
-    }))
-    .filter((row): row is { index: number; line: DialogueLine; score: number } =>
-      typeof row.score === 'number'
-    );
   const isPracticeComplete =
     currentStepIndex === lines.length - 1 &&
-    completedStudentScores.length === studentLineIndexes.length;
+    completedStudentTurns.length === studentLineIndexes.length;
 
   useEffect(() => {
-    if (!isRecording && isStudentTurn && transcript.trim()) {
+    if (
+      !isRecording &&
+      isStudentTurn &&
+      transcript.trim() &&
+      !speechRecognitionErrorRef.current &&
+      !unscoredTurns[currentStepIndex]
+    ) {
       setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
     }
-  }, [currentStepIndex, isRecording, isStudentTurn, practiceScore, transcript]);
+  }, [
+    currentStepIndex,
+    isRecording,
+    isStudentTurn,
+    practiceScore,
+    transcript,
+    unscoredTurns,
+  ]);
 
   // Cleanup on unmount or step change
   useEffect(() => {
@@ -216,6 +226,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
 
     if (!SpeechRecognition) {
       setSttError('此瀏覽器不支援即時語音辨識；仍可使用錄音與播放功能。建議使用最新版 Chrome 或 Edge。');
+      setShowScoringFallback(true);
       return;
     }
 
@@ -261,6 +272,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
         setSttError(
           errorMessage[event.error] || `語音辨識暫時無法使用：${event.error}`
         );
+        setShowScoringFallback(true);
       }
       setIsListening(false);
     };
@@ -298,6 +310,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       setIsListening(true);
     } catch {
       setSttError('語音辨識無法啟動；仍可使用錄音與播放功能。');
+      setShowScoringFallback(true);
     }
   };
 
@@ -414,6 +427,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       } else {
         setMicError(`麥克風存取失敗：${err.message || '未知錯誤'}`);
       }
+      setShowScoringFallback(true);
     }
   };
 
@@ -423,7 +437,9 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       mediaRecorderRef.current.stop();
       isRecordingRef.current = false;
       setIsRecording(false);
-      setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
+      if (!finalTranscriptRef.current.trim() || speechRecognitionErrorRef.current) {
+        setShowScoringFallback(true);
+      }
     }
   };
 
@@ -460,8 +476,42 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     stopSpeechRecognition();
     isSttOnlyRef.current = false;
     setIsSttOnly(false);
-    if (transcript.trim()) {
+    if (transcript.trim() && !speechRecognitionErrorRef.current) {
       setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
+    } else {
+      setShowScoringFallback(true);
+    }
+  };
+
+  const handlePracticeWithoutScoring = () => {
+    stopActiveCapture();
+    setCompletedScores((scores) => {
+      const nextScores = { ...scores };
+      delete nextScores[currentStepIndex];
+      return nextScores;
+    });
+    setUnscoredTurns((turns) => ({ ...turns, [currentStepIndex]: true }));
+    setShowScoringFallback(false);
+    setSttError(null);
+  };
+
+  const handleRetryRecognition = () => {
+    setShowScoringFallback(false);
+    setSttError(null);
+    setUnscoredTurns((turns) => {
+      const nextTurns = { ...turns };
+      delete nextTurns[currentStepIndex];
+      return nextTurns;
+    });
+    setCompletedScores((scores) => {
+      const nextScores = { ...scores };
+      delete nextScores[currentStepIndex];
+      return nextScores;
+    });
+    if (isRecordingRef.current || isSttOnlyRef.current) {
+      startSpeechRecognition();
+    } else {
+      handleStartRecording();
     }
   };
 
@@ -485,19 +535,19 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       setSttError('請等示範音檔播放完畢後，再進入下一句。');
       return;
     }
-    if (isStudentTurn && practiceScore < 50) {
+    if (isStudentTurn && !unscoredTurns[currentStepIndex] && practiceScore < 50) {
       setSttError('目前未達 50%，請再試一次或點擊紅色文字練習。');
       return;
     }
     if (currentStepIndex >= lines.length - 1) {
-      if (isStudentTurn) {
+      if (isStudentTurn && !unscoredTurns[currentStepIndex]) {
         setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
       }
       setShowCompletion(true);
       stopActiveCapture();
       return;
     }
-    if (isStudentTurn) {
+    if (isStudentTurn && !unscoredTurns[currentStepIndex]) {
       setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
     }
     stopActiveCapture();
@@ -526,7 +576,9 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     finalTranscriptRef.current = '';
     setSttError(null);
     setCompletedScores({});
+    setUnscoredTurns({});
     setShowCompletion(false);
+    setShowScoringFallback(false);
     setIsSttOnly(false);
     isSttOnlyRef.current = false;
     if (lines[0]?.speaker !== role) {
@@ -839,15 +891,21 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
               <div className="w-full rounded-3xl border border-emerald-200 bg-emerald-50 p-6 text-center shadow-sm">
                 <h3 className="text-xl font-bold text-emerald-900">口說練習完成！</h3>
                 <p className="mt-2 text-sm text-emerald-800">
-                  整體成績：
+                  自動評分回合：
                   <span className="ml-2 text-2xl font-extrabold">
-                    {Math.round(overallScores.reduce((sum, score) => sum + score, 0) / overallScores.length)}%
+                    {overallScores.length
+                      ? `${Math.round(overallScores.reduce((sum, score) => sum + score, 0) / overallScores.length)}%`
+                      : '無'}
                   </span>
                 </p>
                 <div className="mt-5 text-left rounded-2xl bg-white/70 border border-emerald-200 p-4">
                   <h4 className="text-sm font-bold text-emerald-900 mb-3">每一句成績</h4>
                   <div className="space-y-2">
-                    {studentScoreRows.map(({ index, line, score }) => (
+                    {studentLineIndexes.map((index) => {
+                      const line = lines[index];
+                      const score = completedScores[index];
+                      const wasUnscored = unscoredTurns[index];
+                      return (
                       <div
                         key={line.id}
                         className="flex items-center gap-3 text-sm text-emerald-950"
@@ -856,22 +914,53 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                         <span className="flex-1 truncate" title={line.text}>
                           {line.text}
                         </span>
-                        <span className="font-bold">{score}%</span>
+                        <span className="font-bold">
+                          {wasUnscored ? 'Practiced — not automatically assessed' : `${score}%`}
+                        </span>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
                 <p className="mt-2 text-xs text-emerald-700">
-                  這是文字辨識練習分數，不是專業發音評分。
+                  自動評分只包含成功辨識的回合；未評分回合不會影響平均分數。
                 </p>
               </div>
             ) : (
+              <>
+              {showScoringFallback && isStudentTurn && (
+                <div className="w-full rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+                  <p className="font-semibold">Speech recognition isn’t available right now.</p>
+                  <p className="mt-1 text-sm">
+                    You can still record, listen to yourself, and continue without a score.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      onClick={handleRetryRecognition}
+                      className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+                    >
+                      Try again
+                    </button>
+                    <button
+                      onClick={handlePracticeWithoutScoring}
+                      className="rounded-lg border border-amber-400 bg-white px-3 py-2 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                    >
+                      Practice without scoring
+                    </button>
+                  </div>
+                </div>
+              )}
               <button
                 onClick={handleAdvanceStep}
                 disabled={
                   isCurrentLineAudioPlaying ||
-                  (currentStepIndex >= lines.length - 1 && isStudentTurn && !practicePassed) ||
-                  (isStudentTurn && !practicePassed)
+                  (currentStepIndex >= lines.length - 1 &&
+                    isStudentTurn &&
+                    !unscoredTurns[currentStepIndex] &&
+                    !practicePassed) ||
+                  (isStudentTurn &&
+                    !unscoredTurns[currentStepIndex] &&
+                    !practicePassed)
                 }
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-30 disabled:hover:bg-violet-600 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-violet-600/30 transition-colors ml-auto"
               >
@@ -884,6 +973,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                 </span>
                 <ArrowRight className="w-4 h-4" />
               </button>
+              </>
             )}
           </div>
         </div>
