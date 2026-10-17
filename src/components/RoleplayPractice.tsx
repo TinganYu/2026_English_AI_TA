@@ -124,35 +124,20 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     }, '');
   const targetTokens = expandTokens(currentLine?.text || '');
   const recognizedTokens = expandTokens(transcript);
-  const matchingTable = Array.from(
-    { length: targetTokens.length + 1 },
-    () => Array<number>(recognizedTokens.length + 1).fill(0)
-  );
-  for (let targetIndex = 1; targetIndex <= targetTokens.length; targetIndex += 1) {
-    for (let recognizedIndex = 1; recognizedIndex <= recognizedTokens.length; recognizedIndex += 1) {
-      matchingTable[targetIndex][recognizedIndex] =
-        targetTokens[targetIndex - 1] === recognizedTokens[recognizedIndex - 1]
-          ? matchingTable[targetIndex - 1][recognizedIndex - 1] + 1
-          : Math.max(
-              matchingTable[targetIndex - 1][recognizedIndex],
-              matchingTable[targetIndex][recognizedIndex - 1]
-            );
-    }
-  }
   const matchingPairs: Array<{ targetIndex: number; recognizedIndex: number }> = [];
-  let targetIndex = targetTokens.length;
-  let recognizedIndex = recognizedTokens.length;
-  while (targetIndex > 0 && recognizedIndex > 0) {
-    if (targetTokens[targetIndex - 1] === recognizedTokens[recognizedIndex - 1]) {
-      matchingPairs.unshift({ targetIndex: targetIndex - 1, recognizedIndex: recognizedIndex - 1 });
-      targetIndex -= 1;
-      recognizedIndex -= 1;
-    } else if (matchingTable[targetIndex - 1][recognizedIndex] >= matchingTable[targetIndex][recognizedIndex - 1]) {
-      targetIndex -= 1;
-    } else {
-      recognizedIndex -= 1;
+  const unmatchedRecognizedIndexes = new Set(
+    recognizedTokens.map((_, index) => index)
+  );
+  targetTokens.forEach((token, targetIndex) => {
+    const recognizedIndex = recognizedTokens.findIndex(
+      (recognized, index) =>
+        unmatchedRecognizedIndexes.has(index) && recognized === token
+    );
+    if (recognizedIndex >= 0) {
+      matchingPairs.push({ targetIndex, recognizedIndex });
+      unmatchedRecognizedIndexes.delete(recognizedIndex);
     }
-  }
+  });
   const matchedTargetIndexes = new Set(matchingPairs.map((pair) => pair.targetIndex));
   const matchedRecognizedIndexes = new Set(matchingPairs.map((pair) => pair.recognizedIndex));
   const matchingTokenCount = matchingPairs.length;
