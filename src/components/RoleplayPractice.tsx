@@ -54,6 +54,8 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const [selectedRole, setSelectedRole] = useState<'Alex' | 'Emma'>('Emma');
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
+  const [isSttOnly, setIsSttOnly] = useState(false);
+  const [showCompletion, setShowCompletion] = useState(false);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
   const [micError, setMicError] = useState<string | null>(null);
   const [audioLevel, setAudioLevel] = useState<number>(0);
@@ -67,6 +69,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const isRecordingRef = useRef(false);
+  const isSttOnlyRef = useRef(false);
   const speechRecognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordedAudioPlayerRef = useRef<HTMLAudioElement | null>(null);
@@ -75,6 +78,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const animationFrameRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<any>(null);
   const finalTranscriptRef = useRef('');
+  const speechRecognitionErrorRef = useRef(false);
 
   const currentLine = lines[currentStepIndex];
   const isStudentTurn = currentLine?.speaker === selectedRole;
@@ -186,6 +190,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     }
 
     const recognition = new SpeechRecognition();
+    speechRecognitionErrorRef.current = false;
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
@@ -206,7 +211,17 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     };
     recognition.onerror = (event) => {
       if (event.error !== 'aborted') {
-        setSttError(`語音辨識暫時無法使用：${event.error}`);
+        speechRecognitionErrorRef.current = true;
+        const errorMessage: Record<string, string> = {
+          'audio-capture': '手機的語音辨識服務無法取得麥克風；錄音仍可能正常保存。',
+          'no-speech': '手機沒有收到清楚的語音，請靠近麥克風後再試一次。',
+          'not-allowed': '手機拒絕語音辨識權限；請在瀏覽器網站設定中允許麥克風與語音辨識。',
+          'service-not-allowed': '此手機瀏覽器不允許使用語音辨識服務，請改用最新版 Chrome 或 Safari。',
+          network: '手機無法連線到語音辨識服務；請確認網路連線後再試一次。',
+        };
+        setSttError(
+          errorMessage[event.error] || `語音辨識暫時無法使用：${event.error}`
+        );
       }
       setIsListening(false);
     };
@@ -214,6 +229,15 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       // Mobile browsers may ask for microphone permission again when an
       // ended recognition session is started automatically.
       setIsListening(false);
+      if (
+        (isRecordingRef.current || isSttOnlyRef.current) &&
+        !speechRecognitionErrorRef.current &&
+        !finalTranscriptRef.current.trim()
+      ) {
+        setSttError(
+          '手機語音辨識已提前結束，但錄音仍在進行。這通常是手機瀏覽器的 STT 限制，請停止錄音後改用電腦 Chrome/Edge，或使用錄音回放功能。'
+        );
+      }
     };
 
     speechRecognitionRef.current = recognition;
@@ -226,6 +250,8 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   };
 
   const handleStartRecording = async () => {
+    setIsSttOnly(false);
+    isSttOnlyRef.current = false;
     setMicError(null);
     setSttError(null);
     setTranscript('');
@@ -344,6 +370,26 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     }
   };
 
+  const handleStartSttOnly = () => {
+    setMicError(null);
+    setSttError(null);
+    setTranscript('');
+    setInterimTranscript('');
+    finalTranscriptRef.current = '';
+    setIsSttOnly(true);
+    isSttOnlyRef.current = true;
+    startSpeechRecognition();
+  };
+
+  const handleStopSttOnly = () => {
+    stopSpeechRecognition();
+    isSttOnlyRef.current = false;
+    setIsSttOnly(false);
+    if (transcript.trim()) {
+      setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
+    }
+  };
+
   const handlePlayRecordedAudio = () => {
     if (recordedAudioUrl) {
       if (!recordedAudioPlayerRef.current) {
@@ -381,6 +427,12 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       setSttError('目前未達 50%，請再試一次或點擊紅色文字練習。');
       return;
     }
+    if (currentStepIndex >= lines.length - 1) {
+      setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
+      setShowCompletion(true);
+      stopSpeechRecognition();
+      return;
+    }
     if (isStudentTurn) {
       setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
     }
@@ -409,6 +461,9 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     finalTranscriptRef.current = '';
     setSttError(null);
     setCompletedScores({});
+    setShowCompletion(false);
+    setIsSttOnly(false);
+    isSttOnlyRef.current = false;
     setSelfPracticeActive(false);
     if (lines[0]?.speaker !== role) {
       onPlayLineAudio(lines[0]);
@@ -504,7 +559,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
           </div>
         </div>
       )}
-      {isPracticeComplete && (
+      {showCompletion && isPracticeComplete && (
         <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 text-center shadow-sm">
           <h3 className="text-xl font-bold text-emerald-900">口說練習完成！</h3>
           <p className="mt-2 text-sm text-emerald-800">
@@ -711,7 +766,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                     </p>
                   )}
 
-                  {!isRecording ? (
+                  {!isRecording && !isSttOnly ? (
                   <button
                     onClick={handleStartRecording}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-red-600/30 transition-transform active:scale-95"
@@ -721,11 +776,22 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                   </button>
                 ) : (
                   <button
-                    onClick={handleStopRecording}
+                    onClick={isSttOnly ? handleStopSttOnly : handleStopRecording}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 border-2 border-red-500 text-red-400 font-semibold text-xs sm:text-sm animate-pulse hover:bg-slate-700"
                   >
                     <Square className="w-4 h-4 fill-current" />
-                    <span>完成錄音 (Stop)</span>
+                    <span>{isSttOnly ? '停止 STT' : '完成錄音 (Stop)'}</span>
+                  </button>
+                )}
+
+                {!isRecording && !isSttOnly && (
+                  <button
+                    onClick={handleStartSttOnly}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600/80 hover:bg-violet-600 text-white font-semibold text-xs sm:text-sm transition-colors"
+                    title="只測試手機語音辨識，不保存錄音"
+                  >
+                    <Mic className="w-4 h-4" />
+                    <span>只測試 STT（不錄音）</span>
                   </button>
                 )}
 
@@ -763,10 +829,10 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
             <button
               onClick={handleAdvanceStep}
               disabled={
-                currentStepIndex >= lines.length - 1 ||
+                (currentStepIndex >= lines.length - 1 && !practicePassed) ||
                 (isStudentTurn && !practicePassed)
               }
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:hover:bg-indigo-600 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-indigo-600/30 transition-colors ml-auto"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-30 disabled:hover:bg-violet-600 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-violet-600/30 transition-colors ml-auto"
             >
               <span>
                 {currentStepIndex >= lines.length - 1
