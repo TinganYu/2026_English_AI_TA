@@ -17,6 +17,7 @@ import { DialogueLine } from '../types';
 import { speakWithBrowserSynthesis } from '../services/ttsService';
 
 interface SpeechRecognitionEventLike extends Event {
+  resultIndex: number;
   results: {
     [index: number]: {
       [index: number]: { transcript: string };
@@ -57,6 +58,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const [micError, setMicError] = useState<string | null>(null);
   const [audioLevel, setAudioLevel] = useState<number>(0);
   const [transcript, setTranscript] = useState('');
+  const [interimTranscript, setInterimTranscript] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [sttError, setSttError] = useState<string | null>(null);
   const [completedScores, setCompletedScores] = useState<Record<number, number>>({});
@@ -72,6 +74,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<any>(null);
+  const finalTranscriptRef = useRef('');
 
   const currentLine = lines[currentStepIndex];
   const isStudentTurn = currentLine?.speaker === selectedRole;
@@ -90,17 +93,22 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     text.split(/\s+/).flatMap((word) => normalizeToken(word).split(/\s+/)).filter(Boolean);
   const targetTokens = expandTokens(currentLine?.text || '');
   const recognizedTokens = expandTokens(transcript);
-  const matchedTargetIndexes = targetTokens.reduce<number[]>((matches, token, targetIndex) => {
-    const previousMatch = matches.length ? matches[matches.length - 1] : -1;
-    const matchIndex = recognizedTokens.findIndex(
-      (recognized, index) =>
-        index > previousMatch &&
-        (recognized === token || recognized.startsWith(token) || token.startsWith(recognized))
-    );
-    if (matchIndex >= 0) matches.push(targetIndex);
-    return matches;
-  }, []);
-  const matchingTokenCount = matchedTargetIndexes.length;
+  const matchingPairs = targetTokens.reduce<Array<{ targetIndex: number; recognizedIndex: number }>>(
+    (matches, token, targetIndex) => {
+      const previousRecognizedIndex = matches.length
+        ? matches[matches.length - 1].recognizedIndex
+        : -1;
+      const recognizedIndex = recognizedTokens.findIndex(
+        (recognized, index) => index > previousRecognizedIndex && recognized === token
+      );
+      if (recognizedIndex >= 0) matches.push({ targetIndex, recognizedIndex });
+      return matches;
+    },
+    []
+  );
+  const matchedTargetIndexes = new Set(matchingPairs.map((pair) => pair.targetIndex));
+  const matchedRecognizedIndexes = new Set(matchingPairs.map((pair) => pair.recognizedIndex));
+  const matchingTokenCount = matchingPairs.length;
   const practiceScore = targetTokens.length
     ? Math.round((matchingTokenCount / targetTokens.length) * 100)
     : 0;
@@ -179,14 +187,22 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
     recognition.lang = 'en-US';
     recognition.onresult = (event) => {
-      let text = '';
-      for (let i = 0; i < event.results.length; i += 1) {
-        text += event.results[i][0].transcript;
+      let finalText = '';
+      let interimText = '';
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const resultText = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalText += `${resultText} `;
+        } else {
+          interimText += `${resultText} `;
+        }
       }
-      setTranscript(text.trim());
+      finalTranscriptRef.current = `${finalTranscriptRef.current} ${finalText}`.trim();
+      setTranscript(finalTranscriptRef.current);
+      setInterimTranscript(interimText.trim());
     };
     recognition.onerror = (event) => {
       if (event.error !== 'aborted') {
@@ -213,6 +229,8 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     setMicError(null);
     setSttError(null);
     setTranscript('');
+    setInterimTranscript('');
+    finalTranscriptRef.current = '';
     setRecordedAudioUrl(null);
     stopAudioMonitoring();
     stopSpeechRecognition();
@@ -369,8 +387,9 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     stopSpeechRecognition();
     setRecordedAudioUrl(null);
     setTranscript('');
+    setInterimTranscript('');
+    finalTranscriptRef.current = '';
     setSttError(null);
-    setCompletedScores({});
     setSelfPracticeActive(false);
     if (currentStepIndex < lines.length - 1) {
       const nextIndex = currentStepIndex + 1;
@@ -386,7 +405,10 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     setCurrentStepIndex(0);
     setRecordedAudioUrl(null);
     setTranscript('');
+    setInterimTranscript('');
+    finalTranscriptRef.current = '';
     setSttError(null);
+    setCompletedScores({});
     setSelfPracticeActive(false);
     if (lines[0]?.speaker !== role) {
       onPlayLineAudio(lines[0]);
@@ -560,7 +582,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                 return currentLine.text.split(/(\s+)/).map((part, index) => {
                 if (/^\s+$/.test(part)) return part;
                 const token = normalizeToken(part);
-                const isCorrect = Boolean(transcript) && matchedTargetIndexes.includes(wordIndex);
+                const isCorrect = Boolean(transcript) && matchedTargetIndexes.has(wordIndex);
                 wordIndex += 1;
                 const hasResult = Boolean(transcript);
                 return (
@@ -568,7 +590,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                     key={`${part}-${index}`}
                     type="button"
                     onClick={() => handlePlayPracticeWord(part)}
-                    className={`transition-colors hover:underline ${
+                    className={`cursor-pointer transition-colors hover:underline ${
                       hasResult
                         ? isCorrect
                           ? 'text-emerald-300'
@@ -615,8 +637,8 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                         <button
                           type="button"
                           onClick={() => handlePlayPracticeWord(word)}
-                          className={`hover:underline ${
-                            index < recognizedTokens.length && recognizedTokens[index] === targetTokens[index]
+                          className={`cursor-pointer hover:underline ${
+                            matchedRecognizedIndexes.has(index)
                               ? 'text-emerald-300'
                               : 'text-rose-300 underline decoration-2'
                           }`}
@@ -628,6 +650,12 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                     ))
                   ) : (
                     '開始錄音後，這裡會顯示你說的英文。'
+                  )}
+                  {interimTranscript && (
+                    <span className="text-slate-400 italic">
+                      {transcript ? ' ' : ''}
+                      {interimTranscript}
+                    </span>
                   )}
                 </div>
                 {transcript && (
