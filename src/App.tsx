@@ -30,8 +30,7 @@ export default function App() {
   const [currentLineIndex, setCurrentLineIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isLoadingAudio, setIsLoadingAudio] = useState<boolean>(false);
-  const [playbackSpeed, setPlaybackSpeed] = useState<number>(0.85); // 0.85x default comfortable slow pace for A2
-  const [slowPace, setSlowPace] = useState<boolean>(true);
+  const playbackSpeed = 0.85;
   const [showChinese, setShowChinese] = useState<boolean>(true);
   const [selectedVocabWord, setSelectedVocabWord] = useState<VocabularyItem | null>(null);
 
@@ -335,16 +334,12 @@ export default function App() {
           isLoading={isLoadingAudio}
           currentLineIndex={currentLineIndex}
           totalLines={script.lines.length}
-          playbackSpeed={playbackSpeed}
-          slowPace={slowPace}
           activeSpeaker={script.lines[currentLineIndex]?.speaker}
           onPlayAll={handlePlayAll}
           onPause={handlePause}
           onReset={handleReset}
           onNextLine={handleNextLine}
           onPrevLine={handlePrevLine}
-          onSpeedChange={(speed) => setPlaybackSpeed(speed)}
-          onToggleSlowPace={() => setSlowPace(!slowPace)}
         />
 
         {/* Navigation Tabs */}

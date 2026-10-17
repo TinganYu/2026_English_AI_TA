@@ -14,16 +14,12 @@ interface AudioPlayerControlsProps {
   isLoading: boolean;
   currentLineIndex: number;
   totalLines: number;
-  playbackSpeed: number;
-  slowPace: boolean;
   activeSpeaker?: string;
   onPlayAll: () => void;
   onPause: () => void;
   onReset: () => void;
   onNextLine: () => void;
   onPrevLine: () => void;
-  onSpeedChange: (speed: number) => void;
-  onToggleSlowPace: () => void;
 }
 
 export const AudioPlayerControls: React.FC<AudioPlayerControlsProps> = ({
@@ -31,19 +27,13 @@ export const AudioPlayerControls: React.FC<AudioPlayerControlsProps> = ({
   isLoading,
   currentLineIndex,
   totalLines,
-  playbackSpeed,
-  slowPace,
   activeSpeaker,
   onPlayAll,
   onPause,
   onReset,
   onNextLine,
   onPrevLine,
-  onSpeedChange,
-  onToggleSlowPace,
 }) => {
-  const speeds = [0.75, 0.85, 1.0, 1.25];
-
   return (
     <div className="bg-slate-900 text-white rounded-3xl p-4 sm:p-5 shadow-xl border border-slate-800 space-y-4">
       {/* Main Player Row */}
@@ -121,35 +111,8 @@ export const AudioPlayerControls: React.FC<AudioPlayerControlsProps> = ({
           </button>
         </div>
 
-        {/* Right: Speed & Mode Settings */}
-        <div className="flex items-center gap-3 w-full lg:w-auto justify-end">
-          <div className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-700/60">
-            {speeds.map((s) => (
-              <button
-                key={s}
-                onClick={() => onSpeedChange(s)}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-all ${
-                  playbackSpeed === s
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {s}x
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={onToggleSlowPace}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-              slowPace
-                ? 'bg-amber-500/10 border-amber-500/50 text-amber-300'
-                : 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700'
-            }`}
-            title="Toggle extra slow speech styling for ESL practice"
-          >
-            {slowPace ? '🐢 學生慢速模式' : '⚡ 正常自然語速'}
-          </button>
+        <div className="text-xs text-amber-300 font-semibold whitespace-nowrap">
+          🐢 固定慢速
         </div>
       </div>
     </div>

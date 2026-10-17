@@ -14,6 +14,7 @@ import {
   Timer,
 } from 'lucide-react';
 import { DialogueLine } from '../types';
+import { speakWithBrowserSynthesis } from '../services/ttsService';
 
 interface SpeechRecognitionEventLike extends Event {
   results: {
@@ -74,20 +75,20 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const currentLine = lines[currentStepIndex];
   const isStudentTurn = currentLine?.speaker === selectedRole;
   const partnerRole = selectedRole === 'Alex' ? 'Emma' : 'Alex';
-  const normalizeToken = (value: string) =>
-    value.toLowerCase().replace(/[^a-z0-9']/g, '');
-  const recognizedTokens = new Set(
-    transcript
-      .split(/\s+/)
-      .map(normalizeToken)
-      .filter(Boolean)
+  const normalizeToken = (value: string) => value.toLowerCase().replace(/[^a-z0-9']/g, '');
+  const targetTokens = (currentLine?.text || '').split(/\s+/).map(normalizeToken).filter(Boolean);
+  const recognizedTokens = transcript.split(/\s+/).map(normalizeToken).filter(Boolean);
+  const matchingTokenCount = targetTokens.reduce(
+    (count, token, index) => count + (recognizedTokens[index] === token ? 1 : 0),
+    0
   );
-  const highlightTokens = new Set(
-    (currentLine?.highlightWords || [])
-      .flatMap((word) => word.split(/\s+/))
-      .map(normalizeToken)
-      .filter(Boolean)
-  );
+  const practiceScore = targetTokens.length
+    ? Math.round((matchingTokenCount / targetTokens.length) * 100)
+    : 0;
+  const practicePassed =
+    Boolean(transcript.trim()) &&
+    recognizedTokens.length === targetTokens.length &&
+    matchingTokenCount === targetTokens.length;
 
   // Cleanup on unmount or step change
   useEffect(() => {
@@ -299,6 +300,10 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     }
   };
 
+  const handlePlayPracticeWord = (word: string) => {
+    speakWithBrowserSynthesis(word, selectedRole, 0.7);
+  };
+
   // Self Practice Timer mode (for cases without mic hardware)
   const handleStartSelfPractice = () => {
     setSelfPracticeActive(true);
@@ -317,6 +322,10 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   };
 
   const handleAdvanceStep = () => {
+    if (isStudentTurn && !practicePassed) {
+      setSttError('請繼續練習，整句辨識達到 100% 後才能進入下一句。');
+      return;
+    }
     stopSpeechRecognition();
     setRecordedAudioUrl(null);
     setTranscript('');
@@ -474,35 +483,39 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
               }`}
             >
               &quot;
-              {currentLine.text.split(/(\s+)/).map((part, index) => {
+              {(() => {
+                let wordIndex = 0;
+                return currentLine.text.split(/(\s+)/).map((part, index) => {
                 if (/^\s+$/.test(part)) return part;
                 const token = normalizeToken(part);
-                const isKeyword = highlightTokens.has(token);
-                const wasRecognized = recognizedTokens.has(token);
+                const isCorrect =
+                  Boolean(transcript) &&
+                  recognizedTokens[wordIndex] === token;
+                wordIndex += 1;
+                const hasResult = Boolean(transcript);
                 return (
-                  <span
+                  <button
                     key={`${part}-${index}`}
-                    className={
-                      transcript && isKeyword
-                        ? wasRecognized
+                    type="button"
+                    onClick={() => handlePlayPracticeWord(part)}
+                    className={`transition-colors hover:underline ${
+                      hasResult
+                        ? isCorrect
                           ? 'text-emerald-300'
                           : 'text-rose-300 underline decoration-2'
-                        : isKeyword
+                        : currentLine.highlightWords?.some(
+                            (word) => normalizeToken(word) === token
+                          )
                           ? 'text-amber-300'
-                          : undefined
-                    }
-                    title={
-                      transcript && isKeyword
-                        ? wasRecognized
-                          ? '已辨識到'
-                          : '請再練習這個 keyword'
-                        : undefined
-                    }
+                          : 'text-amber-100'
+                    }`}
+                    title="點擊播放這個字"
                   >
                     {part}
-                  </span>
+                  </button>
                 );
-              })}
+                });
+              })()}
               &quot;
             </div>
 
@@ -521,16 +534,36 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                     </span>
                   )}
                 </div>
-                <p className="min-h-6 text-sm text-slate-100">
-                  {transcript || '開始錄音後，這裡會顯示你說的英文。'}
-                </p>
-                {transcript && currentLine.highlightWords && currentLine.highlightWords.length > 0 && (
-                  <p className="text-xs text-slate-400">
-                    Keywords：
-                    <span className="text-amber-300 ml-1">
-                      {currentLine.highlightWords.join(', ')}
+                <div className="min-h-6 text-sm text-slate-100">
+                  {transcript ? (
+                    transcript.split(/\s+/).map((word, index) => (
+                      <React.Fragment key={`${word}-${index}`}>
+                        {index > 0 ? ' ' : ''}
+                        <button
+                          type="button"
+                          onClick={() => handlePlayPracticeWord(word)}
+                          className={`hover:underline ${
+                            recognizedTokens[index] === targetTokens[index]
+                              ? 'text-emerald-300'
+                              : 'text-rose-300 underline decoration-2'
+                          }`}
+                          title="點擊播放這個辨識到的字"
+                        >
+                          {word}
+                        </button>
+                      </React.Fragment>
+                    ))
+                  ) : (
+                    '開始錄音後，這裡會顯示你說的英文。'
+                  )}
+                </div>
+                {transcript && (
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <span className={practicePassed ? 'text-emerald-300' : 'text-rose-300'}>
+                      {practicePassed ? '100% 通過，可以進入下一句' : `目前 ${practiceScore}%`}
                     </span>
-                  </p>
+                    <span className="text-slate-400">紅色文字代表需要再練習</span>
+                  </div>
                 )}
               </div>
             )}
@@ -628,10 +661,19 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
             {/* Advance Button */}
             <button
               onClick={handleAdvanceStep}
-              disabled={currentStepIndex >= lines.length - 1}
+              disabled={
+                currentStepIndex >= lines.length - 1 ||
+                (isStudentTurn && !practicePassed)
+              }
               className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:hover:bg-indigo-600 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-indigo-600/30 transition-colors ml-auto"
             >
-              <span>{currentStepIndex >= lines.length - 1 ? '練習完成！' : '下一句 (Next Turn)'}</span>
+              <span>
+                {currentStepIndex >= lines.length - 1
+                  ? '練習完成！'
+                  : isStudentTurn && !practicePassed
+                    ? '先達到 100% 才能繼續'
+                    : '下一句 (Next Turn)'}
+              </span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
