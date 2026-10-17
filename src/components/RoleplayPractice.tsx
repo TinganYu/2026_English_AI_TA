@@ -648,38 +648,6 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
           </div>
         </div>
       )}
-      {showCompletion && isPracticeComplete && (
-        <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 text-center shadow-sm">
-          <h3 className="text-xl font-bold text-emerald-900">口說練習完成！</h3>
-          <p className="mt-2 text-sm text-emerald-800">
-            整體成績：
-            <span className="ml-2 text-2xl font-extrabold">
-              {Math.round(overallScores.reduce((sum, score) => sum + score, 0) / overallScores.length)}%
-            </span>
-          </p>
-          <div className="mt-5 text-left rounded-2xl bg-white/70 border border-emerald-200 p-4">
-            <h4 className="text-sm font-bold text-emerald-900 mb-3">每一句成績</h4>
-            <div className="space-y-2">
-              {studentScoreRows.map(({ index, line, score }) => (
-                <div
-                  key={line.id}
-                  className="flex items-center gap-3 text-sm text-emerald-950"
-                >
-                  <span className="w-12 shrink-0 font-semibold">第 {index + 1} 句</span>
-                  <span className="flex-1 truncate" title={line.text}>
-                    {line.text}
-                  </span>
-                  <span className="font-bold">{score}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <p className="mt-2 text-xs text-emerald-700">
-            這是文字辨識練習分數，不是專業發音評分。
-          </p>
-        </div>
-      )}
-
       {/* Practice Stage Card */}
       {currentLine && (
         <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-800 space-y-6">
@@ -914,25 +882,57 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
               </div>
             )}
 
-            {/* Advance Button */}
-            <button
-              onClick={handleAdvanceStep}
-              disabled={
-                isCurrentLineAudioPlaying ||
-                (currentStepIndex >= lines.length - 1 && isStudentTurn && !practicePassed) ||
-                (isStudentTurn && !practicePassed)
-              }
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-30 disabled:hover:bg-violet-600 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-violet-600/30 transition-colors ml-auto"
-            >
-              <span>
-                {currentStepIndex >= lines.length - 1
-                  ? '練習完成！'
-                  : isStudentTurn && !practicePassed
-                    ? '先達到 50% 才能繼續'
-                    : '下一句 (Next Turn)'}
-              </span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            {/* Advance Button / Completion Results */}
+            {showCompletion && isPracticeComplete ? (
+              <div className="w-full rounded-3xl border border-emerald-200 bg-emerald-50 p-6 text-center shadow-sm">
+                <h3 className="text-xl font-bold text-emerald-900">口說練習完成！</h3>
+                <p className="mt-2 text-sm text-emerald-800">
+                  整體成績：
+                  <span className="ml-2 text-2xl font-extrabold">
+                    {Math.round(overallScores.reduce((sum, score) => sum + score, 0) / overallScores.length)}%
+                  </span>
+                </p>
+                <div className="mt-5 text-left rounded-2xl bg-white/70 border border-emerald-200 p-4">
+                  <h4 className="text-sm font-bold text-emerald-900 mb-3">每一句成績</h4>
+                  <div className="space-y-2">
+                    {studentScoreRows.map(({ index, line, score }) => (
+                      <div
+                        key={line.id}
+                        className="flex items-center gap-3 text-sm text-emerald-950"
+                      >
+                        <span className="w-12 shrink-0 font-semibold">第 {index + 1} 句</span>
+                        <span className="flex-1 truncate" title={line.text}>
+                          {line.text}
+                        </span>
+                        <span className="font-bold">{score}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <p className="mt-2 text-xs text-emerald-700">
+                  這是文字辨識練習分數，不是專業發音評分。
+                </p>
+              </div>
+            ) : (
+              <button
+                onClick={handleAdvanceStep}
+                disabled={
+                  isCurrentLineAudioPlaying ||
+                  (currentStepIndex >= lines.length - 1 && isStudentTurn && !practicePassed) ||
+                  (isStudentTurn && !practicePassed)
+                }
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-30 disabled:hover:bg-violet-600 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-violet-600/30 transition-colors ml-auto"
+              >
+                <span>
+                  {currentStepIndex >= lines.length - 1
+                    ? '練習完成！'
+                    : isStudentTurn && !practicePassed
+                      ? '先達到 50% 才能繼續'
+                      : '下一句 (Next Turn)'}
+                </span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       )}
