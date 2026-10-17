@@ -393,6 +393,9 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
         }
         // stop all microphone tracks
         stream.getTracks().forEach((track) => track.stop());
+        if (mediaRecorderRef.current === mediaRecorder) {
+          mediaRecorderRef.current = null;
+        }
       };
 
       mediaRecorder.start(200); // 200ms slices
@@ -422,6 +425,22 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       setIsRecording(false);
       setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
     }
+  };
+
+  const stopActiveCapture = () => {
+    stopSpeechRecognition();
+    isSttOnlyRef.current = false;
+    setIsSttOnly(false);
+
+    const mediaRecorder = mediaRecorderRef.current;
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+    mediaRecorderRef.current = null;
+    isRecordingRef.current = false;
+    setIsRecording(false);
+    stopAudioMonitoring();
+    setAudioLevel(0);
   };
 
   const handleStartSttOnly = () => {
@@ -486,13 +505,13 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     if (currentStepIndex >= lines.length - 1) {
       setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
       setShowCompletion(true);
-      stopSpeechRecognition();
+      stopActiveCapture();
       return;
     }
     if (isStudentTurn) {
       setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
     }
-    stopSpeechRecognition();
+    stopActiveCapture();
     setRecordedAudioUrl(null);
     setTranscript('');
     setInterimTranscript('');
