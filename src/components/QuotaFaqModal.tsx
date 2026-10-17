@@ -126,9 +126,6 @@ export const QuotaFaqModal: React.FC<QuotaFaqModalProps> = ({ isOpen, onClose })
                 <li>
                   <strong>最穩定的開啟方式</strong>：如果特定瀏覽器（如 Chrome/Safari）仍擋預覽窗，請點擊上方<strong>「在新分頁中開啟（Shared App URL）」</strong>，獨立分頁下麥克風 100% 穩定支援。
                 </li>
-                <li>
-                  <strong>新增「免麥克風口說計時模式」</strong>：學生若在吵雜環境或無麥克風設備，可點擊「自讀計時」，以倒數秒數提示自己開口朗讀，完全不受硬體限制！
-                </li>
               </ul>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, Loader2, Sparkles, Languages } from 'lucide-react';
+import { Volume2, Loader2, Languages } from 'lucide-react';
 import { DialogueLine } from '../types';
 
 interface DialogueLineCardProps {
@@ -149,13 +149,6 @@ export const DialogueLineCard: React.FC<DialogueLineCardProps> = ({
             </div>
           )}
 
-          {/* Audio notes / teacher tip */}
-          {line.audioNotes && (
-            <div className="mt-2 text-[11px] text-slate-400 flex items-center gap-1 italic">
-              <Sparkles className="w-3 h-3 text-amber-500 shrink-0" />
-              <span>Tip: {line.audioNotes}</span>
-            </div>
-          )}
         </div>
       </div>
     </div>

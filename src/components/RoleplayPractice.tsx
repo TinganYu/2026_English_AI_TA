@@ -11,7 +11,6 @@ import {
   Loader2,
   AlertCircle,
   ExternalLink,
-  Timer,
 } from 'lucide-react';
 import { DialogueLine } from '../types';
 import { speakWithBrowserSynthesis } from '../services/ttsService';
@@ -68,8 +67,6 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const [isListening, setIsListening] = useState(false);
   const [sttError, setSttError] = useState<string | null>(null);
   const [completedScores, setCompletedScores] = useState<Record<number, number>>({});
-  const [selfPracticeActive, setSelfPracticeActive] = useState<boolean>(false);
-  const [selfPracticeSeconds, setSelfPracticeSeconds] = useState<number>(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const isRecordingRef = useRef(false);
@@ -80,7 +77,6 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const timerIntervalRef = useRef<any>(null);
   const finalTranscriptRef = useRef('');
   const finalResultsRef = useRef<Record<number, string>>({});
   const recognitionResultOffsetRef = useRef(0);
@@ -128,19 +124,35 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     }, '');
   const targetTokens = expandTokens(currentLine?.text || '');
   const recognizedTokens = expandTokens(transcript);
-  const matchingPairs = targetTokens.reduce<Array<{ targetIndex: number; recognizedIndex: number }>>(
-    (matches, token, targetIndex) => {
-      const previousRecognizedIndex = matches.length
-        ? matches[matches.length - 1].recognizedIndex
-        : -1;
-      const recognizedIndex = recognizedTokens.findIndex(
-        (recognized, index) => index > previousRecognizedIndex && recognized === token
-      );
-      if (recognizedIndex >= 0) matches.push({ targetIndex, recognizedIndex });
-      return matches;
-    },
-    []
+  const matchingTable = Array.from(
+    { length: targetTokens.length + 1 },
+    () => Array<number>(recognizedTokens.length + 1).fill(0)
   );
+  for (let targetIndex = 1; targetIndex <= targetTokens.length; targetIndex += 1) {
+    for (let recognizedIndex = 1; recognizedIndex <= recognizedTokens.length; recognizedIndex += 1) {
+      matchingTable[targetIndex][recognizedIndex] =
+        targetTokens[targetIndex - 1] === recognizedTokens[recognizedIndex - 1]
+          ? matchingTable[targetIndex - 1][recognizedIndex - 1] + 1
+          : Math.max(
+              matchingTable[targetIndex - 1][recognizedIndex],
+              matchingTable[targetIndex][recognizedIndex - 1]
+            );
+    }
+  }
+  const matchingPairs: Array<{ targetIndex: number; recognizedIndex: number }> = [];
+  let targetIndex = targetTokens.length;
+  let recognizedIndex = recognizedTokens.length;
+  while (targetIndex > 0 && recognizedIndex > 0) {
+    if (targetTokens[targetIndex - 1] === recognizedTokens[recognizedIndex - 1]) {
+      matchingPairs.unshift({ targetIndex: targetIndex - 1, recognizedIndex: recognizedIndex - 1 });
+      targetIndex -= 1;
+      recognizedIndex -= 1;
+    } else if (matchingTable[targetIndex - 1][recognizedIndex] >= matchingTable[targetIndex][recognizedIndex - 1]) {
+      targetIndex -= 1;
+    } else {
+      recognizedIndex -= 1;
+    }
+  }
   const matchedTargetIndexes = new Set(matchingPairs.map((pair) => pair.targetIndex));
   const matchedRecognizedIndexes = new Set(matchingPairs.map((pair) => pair.recognizedIndex));
   const matchingTokenCount = matchingPairs.length;
@@ -184,9 +196,6 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       }
       stopAudioMonitoring();
       stopSpeechRecognition();
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-      }
     };
   }, [recordedAudioUrl]);
 
@@ -486,23 +495,6 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     speakWithBrowserSynthesis(word, selectedRole, 0.7);
   };
 
-  // Self Practice Timer mode (for cases without mic hardware)
-  const handleStartSelfPractice = () => {
-    setSelfPracticeActive(true);
-    setSelfPracticeSeconds(6);
-    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-    timerIntervalRef.current = setInterval(() => {
-      setSelfPracticeSeconds((prev) => {
-        if (prev <= 1) {
-          clearInterval(timerIntervalRef.current);
-          setSelfPracticeActive(false);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
   const handleAdvanceStep = () => {
     if (isCurrentLineAudioPlaying) {
       setSttError('請等示範音檔播放完畢後，再進入下一句。');
@@ -531,7 +523,6 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     finalResultsRef.current = {};
     recognitionResultOffsetRef.current = 0;
     setSttError(null);
-    setSelfPracticeActive(false);
     if (currentStepIndex < lines.length - 1) {
       const nextIndex = currentStepIndex + 1;
       setCurrentStepIndex(nextIndex);
@@ -553,7 +544,6 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     setShowCompletion(false);
     setIsSttOnly(false);
     isSttOnlyRef.current = false;
-    setSelfPracticeActive(false);
     if (lines[0]?.speaker !== role) {
       onPlayLineAudio(lines[0]);
     }
@@ -637,12 +627,6 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                 className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-xs font-semibold hover:bg-amber-700 transition-colors"
               >
                 再次嘗試啟用麥克風
-              </button>
-              <button
-                onClick={handleStartSelfPractice}
-                className="px-3 py-1.5 rounded-lg bg-white border border-amber-400 text-amber-900 text-xs font-semibold hover:bg-amber-100 transition-colors"
-              >
-                改用免麥克風「自讀計時練習」
               </button>
             </div>
           </div>
@@ -851,23 +835,6 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                     <span>只測試 STT（不錄音）</span>
                   </button>
                 )}
-
-                {/* Self Practice Countdown (Backup without mic) */}
-                <button
-                  onClick={handleStartSelfPractice}
-                  disabled={selfPracticeActive || isRecording}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                    selfPracticeActive
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
-                  }`}
-                  title="不想錄音時，可使用計時器自主開口朗讀"
-                >
-                  <Timer className="w-3.5 h-3.5 text-amber-400" />
-                  <span>
-                    {selfPracticeActive ? `開口練習中 (${selfPracticeSeconds}s)` : '自讀計時'}
-                  </span>
-                </button>
 
                 {/* Replay student's own recording */}
                 {recordedAudioUrl && (
