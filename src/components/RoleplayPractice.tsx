@@ -79,6 +79,9 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const timerIntervalRef = useRef<any>(null);
   const finalTranscriptRef = useRef('');
   const finalResultsRef = useRef<Record<number, string>>({});
+  const recognitionResultOffsetRef = useRef(0);
+  const shouldContinueRecognitionRef = useRef(false);
+  const recognitionRestartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speechRecognitionErrorRef = useRef(false);
 
   const currentLine = lines[currentStepIndex];
@@ -193,6 +196,11 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   };
 
   const stopSpeechRecognition = () => {
+    shouldContinueRecognitionRef.current = false;
+    if (recognitionRestartTimeoutRef.current) {
+      clearTimeout(recognitionRestartTimeoutRef.current);
+      recognitionRestartTimeoutRef.current = null;
+    }
     if (speechRecognitionRef.current) {
       speechRecognitionRef.current.onend = null;
       speechRecognitionRef.current.stop();
@@ -213,7 +221,9 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
 
     const recognition = new SpeechRecognition();
     speechRecognitionErrorRef.current = false;
-    finalResultsRef.current = {};
+    shouldContinueRecognitionRef.current = true;
+    const resultOffset = recognitionResultOffsetRef.current;
+    recognitionResultOffsetRef.current += 1000;
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
@@ -222,7 +232,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
         const resultText = event.results[i][0].transcript;
         if (event.results[i].isFinal) {
-          finalResultsRef.current[i] = resultText.trim();
+          finalResultsRef.current[resultOffset + i] = resultText.trim();
         } else {
           interimText += `${resultText} `;
         }
@@ -239,7 +249,8 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     };
     recognition.onerror = (event) => {
       if (event.error !== 'aborted') {
-        speechRecognitionErrorRef.current = true;
+        const recoverableError = event.error === 'no-speech';
+        speechRecognitionErrorRef.current = !recoverableError;
         const errorMessage: Record<string, string> = {
           'audio-capture': '手機無法同時使用語音辨識與錄音功能。請改用「只測試 STT（不錄音）」、改用電腦，或只使用錄音功能。',
           'no-speech': '手機沒有收到清楚的語音，請靠近麥克風後再試一次。',
@@ -254,16 +265,29 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       setIsListening(false);
     };
     recognition.onend = () => {
-      // Mobile browsers may ask for microphone permission again when an
-      // ended recognition session is started automatically.
       setIsListening(false);
-      if (
+      const shouldRestart =
+        shouldContinueRecognitionRef.current &&
+        (isRecordingRef.current || isSttOnlyRef.current) &&
+        !speechRecognitionErrorRef.current;
+
+      if (shouldRestart) {
+        recognitionRestartTimeoutRef.current = setTimeout(() => {
+          recognitionRestartTimeoutRef.current = null;
+          if (
+            shouldContinueRecognitionRef.current &&
+            (isRecordingRef.current || isSttOnlyRef.current)
+          ) {
+            startSpeechRecognition();
+          }
+        }, 250);
+      } else if (
         (isRecordingRef.current || isSttOnlyRef.current) &&
         !speechRecognitionErrorRef.current &&
         !finalTranscriptRef.current.trim()
       ) {
         setSttError(
-          '手機無法同時使用語音辨識與錄音功能，因此語音辨識已停止。請改用「只測試 STT（不錄音）」進行辨識，或改用電腦；如需保存聲音，仍可使用錄音功能。'
+          '手機的語音辨識已暫停。請繼續說話，或重新按下 STT 按鈕；若使用錄音模式，建議改用「只測試 STT（不錄音）」或電腦。'
         );
       }
     };
@@ -285,6 +309,8 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     setTranscript('');
     setInterimTranscript('');
     finalTranscriptRef.current = '';
+    finalResultsRef.current = {};
+    recognitionResultOffsetRef.current = 0;
     setRecordedAudioUrl(null);
     stopAudioMonitoring();
     stopSpeechRecognition();
@@ -404,6 +430,8 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     setTranscript('');
     setInterimTranscript('');
     finalTranscriptRef.current = '';
+    finalResultsRef.current = {};
+    recognitionResultOffsetRef.current = 0;
     setIsSttOnly(true);
     isSttOnlyRef.current = true;
     startSpeechRecognition();
@@ -469,6 +497,8 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     setTranscript('');
     setInterimTranscript('');
     finalTranscriptRef.current = '';
+    finalResultsRef.current = {};
+    recognitionResultOffsetRef.current = 0;
     setSttError(null);
     setSelfPracticeActive(false);
     if (currentStepIndex < lines.length - 1) {
@@ -682,7 +712,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                             (word) => normalizeToken(word) === token
                           )
                           ? 'text-amber-300'
-                          : 'text-amber-100'
+                          : 'text-slate-400'
                     }`}
                     title="點擊播放這個字"
                   >
