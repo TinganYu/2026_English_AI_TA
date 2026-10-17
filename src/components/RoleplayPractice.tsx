@@ -59,6 +59,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const [transcript, setTranscript] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [sttError, setSttError] = useState<string | null>(null);
+  const [completedScores, setCompletedScores] = useState<Record<number, number>>({});
   const [selfPracticeActive, setSelfPracticeActive] = useState<boolean>(false);
   const [selfPracticeSeconds, setSelfPracticeSeconds] = useState<number>(0);
 
@@ -75,20 +76,62 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const currentLine = lines[currentStepIndex];
   const isStudentTurn = currentLine?.speaker === selectedRole;
   const partnerRole = selectedRole === 'Alex' ? 'Emma' : 'Alex';
-  const normalizeToken = (value: string) => value.toLowerCase().replace(/[^a-z0-9']/g, '');
-  const targetTokens = (currentLine?.text || '').split(/\s+/).map(normalizeToken).filter(Boolean);
-  const recognizedTokens = transcript.split(/\s+/).map(normalizeToken).filter(Boolean);
-  const matchingTokenCount = targetTokens.reduce(
-    (count, token, index) => count + (recognizedTokens[index] === token ? 1 : 0),
-    0
-  );
+  const normalizeToken = (value: string) => {
+    const normalized = value.toLowerCase().replace(/[^a-z0-9']/g, '');
+    const contraction = {
+      "i'm": 'i am', "you're": 'you are', "he's": 'he is', "she's": 'she is',
+      "it's": 'it is', "we're": 'we are', "they're": 'they are', "that's": 'that is',
+      "can't": 'cannot', "don't": 'do not', "doesn't": 'does not', "isn't": 'is not',
+      "aren't": 'are not',
+    }[normalized];
+    return contraction || normalized;
+  };
+  const expandTokens = (text: string) =>
+    text.split(/\s+/).flatMap((word) => normalizeToken(word).split(/\s+/)).filter(Boolean);
+  const targetTokens = expandTokens(currentLine?.text || '');
+  const recognizedTokens = expandTokens(transcript);
+  const matchedTargetIndexes = targetTokens.reduce<number[]>((matches, token, targetIndex) => {
+    const previousMatch = matches.length ? matches[matches.length - 1] : -1;
+    const matchIndex = recognizedTokens.findIndex(
+      (recognized, index) =>
+        index > previousMatch &&
+        (recognized === token || recognized.startsWith(token) || token.startsWith(recognized))
+    );
+    if (matchIndex >= 0) matches.push(targetIndex);
+    return matches;
+  }, []);
+  const matchingTokenCount = matchedTargetIndexes.length;
   const practiceScore = targetTokens.length
     ? Math.round((matchingTokenCount / targetTokens.length) * 100)
     : 0;
-  const practicePassed =
-    Boolean(transcript.trim()) &&
-    recognizedTokens.length === targetTokens.length &&
-    matchingTokenCount === targetTokens.length;
+  const practicePassed = Boolean(transcript.trim()) && practiceScore >= 50;
+  const studentLineIndexes = lines
+    .map((line, index) => (line.speaker === selectedRole ? index : -1))
+    .filter((index) => index >= 0);
+  const completedStudentScores = studentLineIndexes
+    .map((index) => completedScores[index])
+    .filter((score): score is number => typeof score === 'number');
+  const overallScores = studentLineIndexes
+    .map((index) => (index === currentStepIndex ? practiceScore : completedScores[index]))
+    .filter((score): score is number => typeof score === 'number');
+  const studentScoreRows = studentLineIndexes
+    .map((index) => ({
+      index,
+      line: lines[index],
+      score: index === currentStepIndex ? practiceScore : completedScores[index],
+    }))
+    .filter((row): row is { index: number; line: DialogueLine; score: number } =>
+      typeof row.score === 'number'
+    );
+  const isPracticeComplete =
+    currentStepIndex === lines.length - 1 &&
+    completedStudentScores.length === studentLineIndexes.length;
+
+  useEffect(() => {
+    if (!isRecording && isStudentTurn && transcript.trim()) {
+      setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
+    }
+  }, [currentStepIndex, isRecording, isStudentTurn, practiceScore, transcript]);
 
   // Cleanup on unmount or step change
   useEffect(() => {
@@ -136,7 +179,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
-    recognition.interimResults = true;
+    recognition.interimResults = false;
     recognition.lang = 'en-US';
     recognition.onresult = (event) => {
       let text = '';
@@ -152,16 +195,9 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       setIsListening(false);
     };
     recognition.onend = () => {
-      if (isRecordingRef.current) {
-        try {
-          recognition.start();
-          setIsListening(true);
-        } catch {
-          setIsListening(false);
-        }
-      } else {
-        setIsListening(false);
-      }
+      // Mobile browsers may ask for microphone permission again when an
+      // ended recognition session is started automatically.
+      setIsListening(false);
     };
 
     speechRecognitionRef.current = recognition;
@@ -286,6 +322,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       mediaRecorderRef.current.stop();
       isRecordingRef.current = false;
       setIsRecording(false);
+      setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
     }
   };
 
@@ -322,14 +359,18 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   };
 
   const handleAdvanceStep = () => {
-    if (isStudentTurn && !practicePassed) {
-      setSttError('請繼續練習，整句辨識達到 100% 後才能進入下一句。');
+    if (isStudentTurn && practiceScore < 50) {
+      setSttError('目前未達 50%，請再試一次或點擊紅色文字練習。');
       return;
+    }
+    if (isStudentTurn) {
+      setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
     }
     stopSpeechRecognition();
     setRecordedAudioUrl(null);
     setTranscript('');
     setSttError(null);
+    setCompletedScores({});
     setSelfPracticeActive(false);
     if (currentStepIndex < lines.length - 1) {
       const nextIndex = currentStepIndex + 1;
@@ -371,7 +412,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
               selectedRole === 'Alex'
                 ? 'border-amber-500 bg-amber-50/70 shadow-md ring-2 ring-amber-400/20'
                 : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
-            }`}
+            } cursor-pointer`}
           >
             <div className="flex items-center gap-3 mb-2">
               <span className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center font-bold text-lg">
@@ -396,7 +437,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
               selectedRole === 'Emma'
                 ? 'border-emerald-500 bg-emerald-50/70 shadow-md ring-2 ring-emerald-400/20'
                 : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
-            }`}
+            } cursor-pointer`}
           >
             <div className="flex items-center gap-3 mb-2">
               <span className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg">
@@ -439,6 +480,37 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {isPracticeComplete && (
+        <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 text-center shadow-sm">
+          <h3 className="text-xl font-bold text-emerald-900">口說練習完成！</h3>
+          <p className="mt-2 text-sm text-emerald-800">
+            整體成績：
+            <span className="ml-2 text-2xl font-extrabold">
+              {Math.round(overallScores.reduce((sum, score) => sum + score, 0) / overallScores.length)}%
+            </span>
+          </p>
+          <div className="mt-5 text-left rounded-2xl bg-white/70 border border-emerald-200 p-4">
+            <h4 className="text-sm font-bold text-emerald-900 mb-3">每一句成績</h4>
+            <div className="space-y-2">
+              {studentScoreRows.map(({ index, line, score }) => (
+                <div
+                  key={line.id}
+                  className="flex items-center gap-3 text-sm text-emerald-950"
+                >
+                  <span className="w-12 shrink-0 font-semibold">第 {index + 1} 句</span>
+                  <span className="flex-1 truncate" title={line.text}>
+                    {line.text}
+                  </span>
+                  <span className="font-bold">{score}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-emerald-700">
+            這是文字辨識練習分數，不是專業發音評分。
+          </p>
         </div>
       )}
 
@@ -488,9 +560,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                 return currentLine.text.split(/(\s+)/).map((part, index) => {
                 if (/^\s+$/.test(part)) return part;
                 const token = normalizeToken(part);
-                const isCorrect =
-                  Boolean(transcript) &&
-                  recognizedTokens[wordIndex] === token;
+                const isCorrect = Boolean(transcript) && matchedTargetIndexes.includes(wordIndex);
                 wordIndex += 1;
                 const hasResult = Boolean(transcript);
                 return (
@@ -533,6 +603,9 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                       辨識中
                     </span>
                   )}
+                  {sttError && (
+                    <p className="text-xs text-amber-300">{sttError}</p>
+                  )}
                 </div>
                 <div className="min-h-6 text-sm text-slate-100">
                   {transcript ? (
@@ -543,7 +616,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                           type="button"
                           onClick={() => handlePlayPracticeWord(word)}
                           className={`hover:underline ${
-                            recognizedTokens[index] === targetTokens[index]
+                            index < recognizedTokens.length && recognizedTokens[index] === targetTokens[index]
                               ? 'text-emerald-300'
                               : 'text-rose-300 underline decoration-2'
                           }`}
@@ -560,7 +633,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                 {transcript && (
                   <div className="flex items-center justify-between gap-3 text-xs">
                     <span className={practicePassed ? 'text-emerald-300' : 'text-rose-300'}>
-                      {practicePassed ? '100% 通過，可以進入下一句' : `目前 ${practiceScore}%`}
+                      {practiceScore >= 50 ? `${practiceScore}% 通過，可以進入下一句` : `目前 ${practiceScore}%`}
                     </span>
                     <span className="text-slate-400">紅色文字代表需要再練習</span>
                   </div>
@@ -671,7 +744,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                 {currentStepIndex >= lines.length - 1
                   ? '練習完成！'
                   : isStudentTurn && !practicePassed
-                    ? '先達到 100% 才能繼續'
+                    ? '先達到 50% 才能繼續'
                     : '下一句 (Next Turn)'}
               </span>
               <ArrowRight className="w-4 h-4" />

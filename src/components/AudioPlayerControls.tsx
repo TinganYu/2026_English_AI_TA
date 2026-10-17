@@ -111,9 +111,6 @@ export const AudioPlayerControls: React.FC<AudioPlayerControlsProps> = ({
           </button>
         </div>
 
-        <div className="text-xs text-amber-300 font-semibold whitespace-nowrap">
-          🐢 固定慢速
-        </div>
       </div>
     </div>
   );
