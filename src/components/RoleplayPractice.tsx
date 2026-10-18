@@ -11,6 +11,8 @@ import {
   Loader2,
   AlertCircle,
   ExternalLink,
+  ArrowLeft,
+  RotateCcw,
 } from 'lucide-react';
 import { DialogueLine } from '../types';
 import { speakWithBrowserSynthesis } from '../services/ttsService';
@@ -504,6 +506,32 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     speakWithBrowserSynthesis(word, currentLine?.speaker || 'Emma', 0.7);
   };
 
+  const resetCurrentTurn = () => {
+    stopActiveCapture();
+    setRecordedAudioUrl(null);
+    setTranscript('');
+    setInterimTranscript('');
+    finalTranscriptRef.current = '';
+    finalResultsRef.current = {};
+    recognitionResultOffsetRef.current = 0;
+    setSttError(null);
+    setSecondsOnTurn(0);
+  };
+
+  const handleRestartPractice = () => {
+    resetCurrentTurn();
+    setCompletedScores({});
+    setShowCompletion(false);
+    setCurrentStepIndex(0);
+  };
+
+  const handlePreviousStep = () => {
+    if (currentStepIndex === 0) return;
+    resetCurrentTurn();
+    setShowCompletion(false);
+    setCurrentStepIndex((index) => index - 1);
+  };
+
   const handleAdvanceStep = () => {
     if (isCurrentLineAudioPlaying) {
       setSttError('請等示範音檔播放完畢後，再進入下一句。');
@@ -519,14 +547,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       return;
     }
     setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
-    stopActiveCapture();
-    setRecordedAudioUrl(null);
-    setTranscript('');
-    setInterimTranscript('');
-    finalTranscriptRef.current = '';
-    finalResultsRef.current = {};
-    recognitionResultOffsetRef.current = 0;
-    setSttError(null);
+    resetCurrentTurn();
     if (currentStepIndex < lines.length - 1) {
       const nextIndex = currentStepIndex + 1;
       setCurrentStepIndex(nextIndex);
@@ -611,6 +632,25 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
               第 {currentStepIndex + 1} / {lines.length} 回合
             </span>
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handlePreviousStep}
+                disabled={currentStepIndex === 0}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold disabled:opacity-40 disabled:hover:bg-slate-800"
+                title="回到上一句重新練習"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                上一句
+              </button>
+              <button
+                type="button"
+                onClick={handleRestartPractice}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
+                title="從第一句重新開始"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                重新開始
+              </button>
               <span
                 className={`text-xs px-3 py-1 rounded-full font-semibold ${
                   isStudentTurn
