@@ -54,7 +54,6 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   isAudioPlaying,
   playingLineIndex,
 }) => {
-  const [selectedRole, setSelectedRole] = useState<'Alex' | 'Emma'>('Emma');
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [isSttOnly, setIsSttOnly] = useState(false);
@@ -86,10 +85,9 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const speechRecognitionErrorRef = useRef(false);
 
   const currentLine = lines[currentStepIndex];
-  const isStudentTurn = currentLine?.speaker === selectedRole;
+  const isStudentTurn = Boolean(currentLine);
   const isCurrentLineAudioPlaying =
     isAudioPlaying && playingLineIndex === currentStepIndex;
-  const partnerRole = selectedRole === 'Alex' ? 'Emma' : 'Alex';
   const normalizeToken = (value: string) => {
     const normalized = value.toLowerCase().replace(/[^a-z0-9']/g, '');
     const numberWord = {
@@ -155,15 +153,17 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     ? Math.round((matchingTokenCount / targetTokens.length) * 100)
     : 0;
   const practicePassed = Boolean(transcript.trim()) && practiceScore >= 50;
-  const studentLineIndexes = lines
-    .map((line, index) => (line.speaker === selectedRole ? index : -1))
-    .filter((index) => index >= 0);
+  const studentLineIndexes = lines.map((_, index) => index);
   const completedStudentTurns = studentLineIndexes.filter(
     (index) => typeof completedScores[index] === 'number'
   );
   const overallScores = studentLineIndexes
     .map((index) => (index === currentStepIndex ? practiceScore : completedScores[index]))
     .filter((score): score is number => typeof score === 'number');
+  const roleScores = (role: 'Alex' | 'Emma') =>
+    lines
+      .map((line, index) => (line.speaker === role ? completedScores[index] : undefined))
+      .filter((score): score is number => typeof score === 'number');
   const isPracticeComplete =
     currentStepIndex === lines.length - 1 &&
     completedStudentTurns.length === studentLineIndexes.length;
@@ -501,7 +501,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   };
 
   const handlePlayPracticeWord = (word: string) => {
-    speakWithBrowserSynthesis(word, selectedRole, 0.7);
+    speakWithBrowserSynthesis(word, currentLine?.speaker || 'Emma', 0.7);
   };
 
   const handleAdvanceStep = () => {
@@ -509,20 +509,16 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       setSttError('請等示範音檔播放完畢後，再進入下一句。');
       return;
     }
-    if (isStudentTurn && secondsOnTurn < 5) {
+    if (secondsOnTurn < 5) {
       return;
     }
     if (currentStepIndex >= lines.length - 1) {
-      if (isStudentTurn) {
-        setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
-      }
+      setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
       setShowCompletion(true);
       stopActiveCapture();
       return;
     }
-    if (isStudentTurn) {
-      setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
-    }
+    setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
     stopActiveCapture();
     setRecordedAudioUrl(null);
     setTranscript('');
@@ -534,50 +530,23 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     if (currentStepIndex < lines.length - 1) {
       const nextIndex = currentStepIndex + 1;
       setCurrentStepIndex(nextIndex);
-      if (lines[nextIndex].speaker !== selectedRole) {
-        onPlayLineAudio(lines[nextIndex]);
-      }
-    }
-  };
-
-  const handleSelectRole = (role: 'Alex' | 'Emma') => {
-    setSelectedRole(role);
-    setCurrentStepIndex(0);
-    setRecordedAudioUrl(null);
-    setTranscript('');
-    setInterimTranscript('');
-    finalTranscriptRef.current = '';
-    setSttError(null);
-    setCompletedScores({});
-    setShowCompletion(false);
-    setIsSttOnly(false);
-    isSttOnlyRef.current = false;
-    if (lines[0]?.speaker !== role) {
-      onPlayLineAudio(lines[0]);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Role Picker Card */}
+      {/* Practice Overview Card */}
       <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-sm">
         <h3 className="text-xl font-bold text-slate-900 mb-2 flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-indigo-600" />
           Interactive Role-Play Practice (角色扮演開口練習)
         </h3>
         <p className="text-sm text-slate-600 mb-5">
-          選擇您要扮演的角色。輪到對手時播放預先準備的示範音檔，輪到您時可同時錄音與使用 STT 練習！
+          依照對話順序練習 Alex 與 Emma 的全部台詞。每一句都會使用 STT 計分，完成後可分別查看兩位角色的成績。
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <button
-            onClick={() => handleSelectRole('Alex')}
-            className={`p-4 rounded-2xl border-2 text-left transition-all ${
-              selectedRole === 'Alex'
-                ? 'border-amber-500 bg-amber-50/70 shadow-md ring-2 ring-amber-400/20'
-                : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
-            } cursor-pointer`}
-          >
+          <div className="p-4 rounded-2xl border-2 border-amber-200 bg-amber-50/70">
             <div className="flex items-center gap-3 mb-2">
               <span className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center font-bold text-lg">
                 👨‍💼
@@ -593,16 +562,9 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
             <p className="text-xs text-slate-600">
               練習朗讀有關喜愛紙張觸感、平靜放鬆與懸疑小說的台詞。
             </p>
-          </button>
+          </div>
 
-          <button
-            onClick={() => handleSelectRole('Emma')}
-            className={`p-4 rounded-2xl border-2 text-left transition-all ${
-              selectedRole === 'Emma'
-                ? 'border-emerald-500 bg-emerald-50/70 shadow-md ring-2 ring-emerald-400/20'
-                : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
-            } cursor-pointer`}
-          >
+          <div className="p-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50/70">
             <div className="flex items-center gap-3 mb-2">
               <span className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg">
                 👩‍💼
@@ -618,7 +580,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
             <p className="text-xs text-slate-600">
               練習朗讀有關隨身攜帶電子書、通勤閱讀與科幻小說的台詞。
             </p>
-          </button>
+          </div>
         </div>
       </div>
 
@@ -656,7 +618,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                     : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40'
                 }`}
               >
-                {isStudentTurn ? `👉 輪到您開口朗讀 (${selectedRole})` : `🎧 請聆聽對手 (${partnerRole})`}
+                👉 輪到您開口朗讀 ({currentLine.speaker})
               </span>
             </div>
           </div>
@@ -668,7 +630,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
               <div>
                 <h4 className="font-bold text-lg text-slate-100">{currentLine.speaker}</h4>
                 <p className="text-xs text-slate-400">
-                  {isStudentTurn ? '請放慢語速，大聲朗讀下方句子：' : '夥伴示範發音（預先準備音檔）'}
+                  請放慢語速，大聲朗讀下方句子：
                 </p>
               </div>
             </div>
@@ -869,6 +831,24 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                       : '無'}
                   </span>
                 </p>
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                  {(['Alex', 'Emma'] as const).map((role) => {
+                      const scores = roleScores(role);
+                      return (
+                        <div key={role} className="rounded-2xl bg-white/70 border border-emerald-200 p-3">
+                          <span className="text-sm font-bold text-emerald-900">{role}</span>
+                          <span className="ml-2 text-lg font-extrabold text-emerald-950">
+                            {scores.length
+                              ? `${Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)}%`
+                              : '無'}
+                          </span>
+                          <span className="block text-xs text-emerald-700">
+                            {scores.length} / {lines.filter((line) => line.speaker === role).length} 句已完成
+                          </span>
+                        </div>
+                      );
+                  })}
+                </div>
                 <div className="mt-5 text-left rounded-2xl bg-white/70 border border-emerald-200 p-4">
                   <h4 className="text-sm font-bold text-emerald-900 mb-3">每一句成績</h4>
                   <div className="space-y-2">
@@ -880,7 +860,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                         key={line.id}
                         className="flex items-center gap-3 text-sm text-emerald-950"
                       >
-                        <span className="w-12 shrink-0 font-semibold">第 {index + 1} 句</span>
+                        <span className="w-20 shrink-0 font-semibold">{line.speaker} 第 {index + 1} 句</span>
                         <span className="flex-1 truncate" title={line.text}>
                           {line.text}
                         </span>
@@ -902,14 +882,14 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                 onClick={handleAdvanceStep}
                 disabled={
                   isCurrentLineAudioPlaying ||
-                  (isStudentTurn && secondsOnTurn < 5)
+                  secondsOnTurn < 5
                 }
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-30 disabled:hover:bg-violet-600 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-violet-600/30 transition-colors ml-auto"
               >
                 <span>
                   {currentStepIndex >= lines.length - 1
                     ? '練習完成！'
-                    : isStudentTurn && secondsOnTurn < 5
+                    : secondsOnTurn < 5
                       ? `請等待 ${5 - secondsOnTurn} 秒`
                       : '下一句 (Next Turn)'}
                 </span>

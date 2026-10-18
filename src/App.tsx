@@ -6,7 +6,6 @@ import {
   Sparkles,
   Languages,
   FileText,
-  HelpCircle,
   Users,
   Volume2,
   CheckCircle2,
@@ -20,13 +19,12 @@ import { AudioPlayerControls } from './components/AudioPlayerControls';
 import { DialogueLineCard } from './components/DialogueLineCard';
 import { VocabularySection, VocabularyModal } from './components/VocabularySection';
 import { RoleplayPractice } from './components/RoleplayPractice';
-import { QuizSection } from './components/QuizSection';
 import { WorksheetExportModal } from './components/WorksheetExportModal';
 import { speakWithBrowserSynthesis } from './services/ttsService';
 
 export default function App() {
   const [script, setScript] = useState<DialogueScript>(defaultScript);
-  const [activeTab, setActiveTab] = useState<'dialogue' | 'roleplay' | 'vocabulary' | 'quiz'>('dialogue');
+  const [activeTab, setActiveTab] = useState<'dialogue' | 'roleplay' | 'vocabulary'>('dialogue');
   const [currentLineIndex, setCurrentLineIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isLoadingAudio, setIsLoadingAudio] = useState<boolean>(false);
@@ -383,17 +381,6 @@ export default function App() {
             </span>
           </button>
 
-          <button
-            onClick={() => setActiveTab('quiz')}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
-              activeTab === 'quiz'
-                ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/80'
-                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/60'
-            }`}
-          >
-            <HelpCircle className="w-4 h-4" />
-            <span>4. Comprehension Quiz (閱讀測驗)</span>
-          </button>
         </div>
 
         {/* Tab Content */}
@@ -438,7 +425,6 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'quiz' && <QuizSection quiz={script.quiz} />}
       </main>
 
       {/* Vocabulary Modal Popup */}
