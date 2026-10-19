@@ -13,37 +13,49 @@
   },
   "line-3": {
     "file": "line-3.wav",
-    "text": "I really love mystery novels. I like trying to solve the puzzle before the ending!",
+    "text": "I really love mystery novels. I like trying to solve the case before the ending!",
     "voice": "am_puck",
     "speed": 1
   },
   "line-4": {
     "file": "line-4.wav",
-    "text": "That sounds fun! But I notice you always carry a thick paper book. Why not use an e-reader?",
+    "text": "Is the one you are reading a best-seller? I heard mysteries can be real page-turners.",
     "voice": "af_heart",
     "speed": 1
   },
   "line-5": {
     "file": "line-5.wav",
-    "text": "Because physical books give me a calm experience. I love the smell of paper, and I can rest my eyes from screens.",
+    "text": "Yes, it is! It is so good that I cannot put it down. But I notice you mostly read on a screen.",
     "voice": "am_puck",
     "speed": 1
   },
   "line-6": {
     "file": "line-6.wav",
-    "text": "I see! For me, a digital e-reader is very light and easy to hold. I can carry fifty books on the train every morning.",
+    "text": "Right. A digital e-reader is very light. I can carry fifty books on the train every morning.",
     "voice": "af_heart",
     "speed": 1
   },
   "line-7": {
     "file": "line-7.wav",
-    "text": "That is true! So our different habits change how we enjoy reading. I read to slow down, and you read anywhere on the go.",
+    "text": "That is true! I still prefer physical paperbacks, though. I love the smell of paper, and I can rest my eyes.",
     "voice": "am_puck",
     "speed": 1
   },
   "line-8": {
     "file": "line-8.wav",
-    "text": "Exactly! The stories are magical, whether they are printed on paper or shown on a screen.",
+    "text": "I get that. But I also listen to audiobooks when my eyes are tired. Have you ever tried those?",
+    "voice": "af_heart",
+    "speed": 1
+  },
+  "line-9": {
+    "file": "line-9.wav",
+    "text": "Not really. I like my old habits. I read print books to slow down and unplug from technology.",
+    "voice": "am_puck",
+    "speed": 1
+  },
+  "line-10": {
+    "file": "line-10.wav",
+    "text": "That makes sense! Whether it is in print or digital format, a good story is always amazing.",
     "voice": "af_heart",
     "speed": 1
   }

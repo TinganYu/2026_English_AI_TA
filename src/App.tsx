@@ -14,6 +14,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { defaultScript } from './data/defaultScript';
+import { scripts } from './data/scripts';
 import { DialogueScript, DialogueLine, VocabularyItem } from './types';
 import { AudioPlayerControls } from './components/AudioPlayerControls';
 import { DialogueLineCard } from './components/DialogueLineCard';
@@ -34,6 +35,16 @@ export default function App() {
 
   // Modals
   const [isExportOpen, setIsExportOpen] = useState(false);
+
+  const handleScriptChange = (scriptId: string) => {
+    const nextScript = scripts[scriptId];
+    if (!nextScript) return;
+    stopCurrentAudio();
+    setScript(nextScript);
+    setCurrentLineIndex(0);
+    setActiveTab('dialogue');
+    setSelectedVocabWord(null);
+  };
 
   // Audio elements & state
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -233,6 +244,21 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2">
+            <label className="hidden sm:flex items-center gap-2 text-xs font-semibold text-slate-600">
+              劇本
+              <select
+                value={script.id}
+                onChange={(event) => handleScriptChange(event.target.value)}
+                className="max-w-48 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700 outline-none focus:border-indigo-400"
+                aria-label="選擇劇本"
+              >
+                {Object.values(scripts).map((availableScript) => (
+                  <option key={availableScript.id} value={availableScript.id}>
+                    {availableScript.title}
+                  </option>
+                ))}
+              </select>
+            </label>
             <button
               onClick={() => setIsExportOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
@@ -286,43 +312,26 @@ export default function App() {
 
           {/* Character Comparison Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6 pt-6 border-t border-slate-100">
-            {/* Alex */}
-            <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-start gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-white flex items-center justify-center text-xl shrink-0 shadow-sm">
-                👨‍💼
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="font-bold text-amber-950">Alex</h4>
-                  <span className="text-xs px-2 py-0.5 rounded-md bg-amber-200/60 text-amber-800 font-semibold flex items-center gap-1">
-                    <BookOpen className="w-3 h-3" />
-                    Physical Books
-                  </span>
+            {Object.entries(script.characters).map(([name, character], index) => (
+              <div
+                key={name}
+                className={`p-4 rounded-2xl flex items-start gap-3.5 ${
+                  index === 0
+                    ? 'bg-amber-50/70 border border-amber-200/80'
+                    : 'bg-emerald-50/70 border border-emerald-200/80'
+                }`}
+              >
+                <div className={`w-12 h-12 rounded-2xl ${character.avatarColor} text-white flex items-center justify-center text-xl shrink-0 shadow-sm`}>
+                  {index === 0 ? '👨‍💼' : '👩‍💼'}
                 </div>
-                <p className="text-xs text-amber-900/80 mt-1 leading-relaxed">
-                  {script.characters.Alex.habitSummary}
-                </p>
-              </div>
-            </div>
-
-            {/* Emma */}
-            <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 flex items-start gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center text-xl shrink-0 shadow-sm">
-                👩‍💼
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="font-bold text-emerald-950">Emma</h4>
-                  <span className="text-xs px-2 py-0.5 rounded-md bg-emerald-200/60 text-emerald-800 font-semibold flex items-center gap-1">
-                    <Tablet className="w-3 h-3" />
-                    Digital E-reader
-                  </span>
+                <div>
+                  <h4 className="font-bold text-slate-900">{name}</h4>
+                  <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                    {character.role} · {character.habitSummary}
+                  </p>
                 </div>
-                <p className="text-xs text-emerald-900/80 mt-1 leading-relaxed">
-                  {script.characters.Emma.habitSummary}
-                </p>
               </div>
-            </div>
+            ))}
           </div>
         </section>
 

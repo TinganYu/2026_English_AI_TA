@@ -1,0 +1,62 @@
+{
+  "line-1": {
+    "file": "line-1.wav",
+    "text": "Hey Mia! I need a book for my vacation. Do you have any suggestions?",
+    "voice": "am_puck",
+    "speed": 1
+  },
+  "line-2": {
+    "file": "line-2.wav",
+    "text": "Sure! Are you looking for a travel book about your destination, or just something fun?",
+    "voice": "af_heart",
+    "speed": 1
+  },
+  "line-3": {
+    "file": "line-3.wav",
+    "text": "Just something fun. Maybe a thriller. I love a good cliff-hanger!",
+    "voice": "am_puck",
+    "speed": 1
+  },
+  "line-4": {
+    "file": "line-4.wav",
+    "text": "I see. I usually read a biography or a self-help book, so I might not be the best person to ask.",
+    "voice": "af_heart",
+    "speed": 1
+  },
+  "line-5": {
+    "file": "line-5.wav",
+    "text": "Those are great, but sometimes they are hard to follow when I just want to relax.",
+    "voice": "am_puck",
+    "speed": 1
+  },
+  "line-6": {
+    "file": "line-6.wav",
+    "text": "True. What about a romance novel? I read a really cute one last week. It was a very fast read.",
+    "voice": "af_heart",
+    "speed": 1
+  },
+  "line-7": {
+    "file": "line-7.wav",
+    "text": "No offense, but I usually think those are trash. I need some action and suspense!",
+    "voice": "am_puck",
+    "speed": 1
+  },
+  "line-8": {
+    "file": "line-8.wav",
+    "text": "Haha, okay! How about crime fiction? I know a great one about a stolen diamond.",
+    "voice": "af_heart",
+    "speed": 1
+  },
+  "line-9": {
+    "file": "line-9.wav",
+    "text": "That sounds perfect! Is it available in hardcover? I like collecting them.",
+    "voice": "am_puck",
+    "speed": 1
+  },
+  "line-10": {
+    "file": "line-10.wav",
+    "text": "Yes, it is! It is very popular, so you can easily find it at the bookstore.",
+    "voice": "af_heart",
+    "speed": 1
+  }
+}

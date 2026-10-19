@@ -31,22 +31,13 @@ export interface DialogueScript {
   subtitle: string;
   summary: string;
   level: string;
-  characters: {
-    Alex: {
-      name: string;
-      role: string;
-      voice: string;
-      avatarColor: string;
-      habitSummary: string;
-    };
-    Emma: {
-      name: string;
-      role: string;
-      voice: string;
-      avatarColor: string;
-      habitSummary: string;
-    };
-  };
+  characters: Record<string, {
+    name: string;
+    role: string;
+    voice: string;
+    avatarColor: string;
+    habitSummary: string;
+  }>;
   lines: DialogueLine[];
   vocabulary: VocabularyItem[];
   quiz: QuizQuestion[];

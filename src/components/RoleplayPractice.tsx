@@ -110,7 +110,19 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     return contraction || normalized;
   };
   const expandTokens = (text: string) =>
-    text.split(/\s+/).flatMap((word) => normalizeToken(word).split(/\s+/)).filter(Boolean);
+    text
+      .replace(/[-–—]/g, ' ')
+      .split(/\s+/)
+      .flatMap((word) => normalizeToken(word).split(/\s+/))
+      .filter(Boolean);
+  const comparableToken = (token: string) => {
+    if (token.endsWith('ies') && token.length > 3) return `${token.slice(0, -3)}y`;
+    if (token.endsWith('es') && token.length > 3) return token.slice(0, -2);
+    if (token.endsWith('s') && token.length > 2) return token.slice(0, -1);
+    return token;
+  };
+  const tokensMatch = (left: string, right: string) =>
+    left === right || comparableToken(left) === comparableToken(right);
   const removeTranscriptOverlap = (confirmed: string, interim: string) => {
     const confirmedWords = confirmed.trim().split(/\s+/).filter(Boolean);
     const interimWords = interim.trim().split(/\s+/).filter(Boolean);
@@ -141,7 +153,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   targetTokens.forEach((token, targetIndex) => {
     const recognizedIndex = recognizedTokens.findIndex(
       (recognized, index) =>
-        unmatchedRecognizedIndexes.has(index) && recognized === token
+        unmatchedRecognizedIndexes.has(index) && tokensMatch(recognized, token)
     );
     if (recognizedIndex >= 0) {
       matchingPairs.push({ targetIndex, recognizedIndex });
@@ -162,7 +174,8 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const overallScores = studentLineIndexes
     .map((index) => (index === currentStepIndex ? practiceScore : completedScores[index]))
     .filter((score): score is number => typeof score === 'number');
-  const roleScores = (role: 'Alex' | 'Emma') =>
+  const roles = Array.from(new Set(lines.map((line) => line.speaker)));
+  const roleScores = (role: string) =>
     lines
       .map((line, index) => (line.speaker === role ? completedScores[index] : undefined))
       .filter((score): score is number => typeof score === 'number');
@@ -563,45 +576,29 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
           Interactive Role-Play Practice (角色扮演開口練習)
         </h3>
         <p className="text-sm text-slate-600 mb-5">
-          依照對話順序練習 Alex 與 Emma 的全部台詞。每一句都會使用 STT 計分，完成後可分別查看兩位角色的成績。
+          依照對話順序練習所有角色的台詞。每一句都會使用 STT 計分，完成後可分別查看各角色的成績。
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="p-4 rounded-2xl border-2 border-amber-200 bg-amber-50/70">
-            <div className="flex items-center gap-3 mb-2">
-              <span className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center font-bold text-lg">
-                👨‍💼
-              </span>
-              <div>
-                <h4 className="font-bold text-slate-900">扮演 Alex (紙本書愛好者)</h4>
-                <span className="text-xs text-amber-700 font-medium flex items-center gap-1">
-                  <BookOpen className="w-3 h-3" />
-                  Physical Book & Mystery Fan
+          {roles.map((role, index) => (
+            <div key={role} className={`p-4 rounded-2xl border-2 ${
+              index === 0 ? 'border-amber-200 bg-amber-50/70' : 'border-emerald-200 bg-emerald-50/70'
+            }`}>
+              <div className="flex items-center gap-3 mb-2">
+                <span className={`w-10 h-10 rounded-xl text-white flex items-center justify-center font-bold text-lg ${
+                  index === 0 ? 'bg-amber-600' : 'bg-emerald-600'
+                }`}>
+                  {index === 0 ? '👨‍💼' : '👩‍💼'}
                 </span>
+                <div>
+                  <h4 className="font-bold text-slate-900">練習 {role}</h4>
+                  <span className="text-xs text-slate-600 font-medium">
+                    對話角色
+                  </span>
+                </div>
               </div>
             </div>
-            <p className="text-xs text-slate-600">
-              練習朗讀有關喜愛紙張觸感、平靜放鬆與懸疑小說的台詞。
-            </p>
-          </div>
-
-          <div className="p-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50/70">
-            <div className="flex items-center gap-3 mb-2">
-              <span className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-lg">
-                👩‍💼
-              </span>
-              <div>
-                <h4 className="font-bold text-slate-900">扮演 Emma (數位閱讀愛好者)</h4>
-                <span className="text-xs text-emerald-700 font-medium flex items-center gap-1">
-                  <Tablet className="w-3 h-3" />
-                  Digital E-reader & Sci-Fi Fan
-                </span>
-              </div>
-            </div>
-            <p className="text-xs text-slate-600">
-              練習朗讀有關隨身攜帶電子書、通勤閱讀與科幻小說的台詞。
-            </p>
-          </div>
+          ))}
         </div>
       </div>
 
@@ -872,7 +869,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                   </span>
                 </p>
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-                  {(['Alex', 'Emma'] as const).map((role) => {
+                  {roles.map((role) => {
                       const scores = roleScores(role);
                       return (
                         <div key={role} className="rounded-2xl bg-white/70 border border-emerald-200 p-3">
