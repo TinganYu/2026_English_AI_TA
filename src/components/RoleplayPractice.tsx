@@ -591,7 +591,6 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     if (currentStepIndex === 0) return;
     onStopLineAudio();
     resetCurrentTurn();
-    setShowCompletion(false);
     setCurrentStepIndex((index) => index - 1);
   };
 
