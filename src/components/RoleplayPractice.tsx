@@ -121,9 +121,9 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       .flatMap((word) => normalizeToken(word).split(/\s+/))
       .filter(Boolean);
   const comparableToken = (token: string) => {
-    if (token.endsWith('ies') && token.length > 3) return `${token.slice(0, -3)}y`;
-    if (token.endsWith('es') && token.length > 3) return token.slice(0, -2);
-    if (token.endsWith('s') && token.length > 2) return token.slice(0, -1);
+    if (token.endsWith('ies') && token.length > 4) return `${token.slice(0, -3)}y`;
+    if (token.endsWith('es') && token.length > 4) return token.slice(0, -2);
+    if (token.endsWith('s') && token.length > 3) return token.slice(0, -1);
     return token;
   };
   const tokensMatch = (left: string, right: string) =>
@@ -202,6 +202,13 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const isPracticeComplete =
     currentStepIndex === lines.length - 1 &&
     completedStudentTurns.length === studentLineIndexes.length;
+  const completedScoreValues = Object.values(completedScores);
+  const completedAverage = completedScoreValues.length
+    ? Math.round(
+        completedScoreValues.reduce((sum, score) => sum + score, 0) /
+          completedScoreValues.length
+      )
+    : null;
 
   useEffect(() => {
     if (
@@ -733,9 +740,13 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                 let wordIndex = 0;
                 return currentLine.text.split(/(\s+)/).map((part, index) => {
                 if (/^\s+$/.test(part)) return part;
-                const isHighlighted = highlightedTargetIndexes.has(wordIndex);
+                const partTokenCount = expandTokens(part).length;
+                const isHighlighted = Array.from(
+                  { length: partTokenCount },
+                  (_, offset) => highlightedTargetIndexes.has(wordIndex + offset)
+                ).some(Boolean);
                 const isCorrect = Boolean(transcript) && matchedTargetIndexes.has(wordIndex);
-                wordIndex += 1;
+                wordIndex += partTokenCount;
                 const hasResult = Boolean(transcript);
                 return (
                   <button
@@ -907,6 +918,17 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                     <span>聽我的錄音 (Play My Voice)</span>
                   </button>
                 )}
+              </div>
+            )}
+
+            {completedAverage !== null && !(showCompletion && isPracticeComplete) && (
+              <div className="w-full rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-900">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-semibold">目前練習表現</span>
+                  <span>
+                    平均 {completedAverage}%（已完成 {completedScoreValues.length} / {lines.length} 句）
+                  </span>
+                </div>
               </div>
             )}
 
