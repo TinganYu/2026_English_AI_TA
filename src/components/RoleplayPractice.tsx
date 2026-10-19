@@ -44,6 +44,7 @@ type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
 interface RoleplayPracticeProps {
   lines: DialogueLine[];
   onPlayLineAudio: (line: DialogueLine) => Promise<void>;
+  onStopLineAudio: () => void;
   isGeneratingAudio: boolean;
   isAudioPlaying: boolean;
   playingLineIndex: number;
@@ -52,6 +53,7 @@ interface RoleplayPracticeProps {
 export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   lines,
   onPlayLineAudio,
+  onStopLineAudio,
   isGeneratingAudio,
   isAudioPlaying,
   playingLineIndex,
@@ -585,6 +587,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
 
   const handlePreviousStep = () => {
     if (currentStepIndex === 0) return;
+    onStopLineAudio();
     resetCurrentTurn();
     setShowCompletion(false);
     setCurrentStepIndex((index) => index - 1);

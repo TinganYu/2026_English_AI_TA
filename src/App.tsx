@@ -108,6 +108,7 @@ export default function App() {
   }, [playbackSpeed]);
 
   const stopCurrentAudio = () => {
+    isAutoPlayingRef.current = false;
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -424,6 +425,7 @@ export default function App() {
           <RoleplayPractice
             lines={script.lines}
             onPlayLineAudio={(line) => playLine(line, script.lines.findIndex((l) => l.id === line.id), false)}
+            onStopLineAudio={stopCurrentAudio}
             isGeneratingAudio={isLoadingAudio}
             isAudioPlaying={isPlaying}
             playingLineIndex={currentLineIndex}
