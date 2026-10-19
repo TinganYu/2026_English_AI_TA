@@ -87,6 +87,8 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const recognitionRestartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speechRecognitionErrorRef = useRef(false);
   const referencePlaybackStartedRef = useRef(false);
+  const onPlayLineAudioRef = useRef(onPlayLineAudio);
+  onPlayLineAudioRef.current = onPlayLineAudio;
 
   const currentLine = lines[currentStepIndex];
   const isStudentTurn = Boolean(currentLine);
@@ -208,12 +210,12 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     setHasHeardReferenceAudio(false);
     referencePlaybackStartedRef.current = false;
     if (currentLine) {
-      void onPlayLineAudio(currentLine).catch((error) => {
+      void onPlayLineAudioRef.current(currentLine).catch((error) => {
         setSttError('示範音檔播放失敗，請按「聽聽慢速示範發音」重試。');
         console.warn('Reference audio playback failed:', error);
       });
     }
-  }, [currentStepIndex]);
+  }, [currentStepIndex, lines]);
 
   useEffect(() => {
     if (isAudioPlaying && playingLineIndex === currentStepIndex) {

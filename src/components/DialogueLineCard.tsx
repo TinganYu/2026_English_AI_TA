@@ -8,6 +8,7 @@ interface DialogueLineCardProps {
   isActive: boolean;
   isLoading: boolean;
   showChinese: boolean;
+  accentSpeaker: string;
   onPlayLine: (line: DialogueLine, index: number) => void;
   onWordClick: (word: string) => void;
 }
@@ -18,10 +19,11 @@ export const DialogueLineCard: React.FC<DialogueLineCardProps> = ({
   isActive,
   isLoading,
   showChinese,
+  accentSpeaker,
   onPlayLine,
   onWordClick,
 }) => {
-  const isAlex = line.speaker === 'Alex';
+  const isPrimarySpeaker = line.speaker === accentSpeaker;
 
   // Helper to render words with highlightable chips
   const renderTextWithHighlights = () => {
@@ -80,7 +82,7 @@ export const DialogueLineCard: React.FC<DialogueLineCardProps> = ({
       id={`line-${line.id}`}
       className={`relative rounded-2xl p-4 sm:p-5 transition-all duration-300 border ${
         isActive
-          ? isAlex
+          ? isPrimarySpeaker
             ? 'bg-amber-50/90 border-amber-400 ring-2 ring-amber-400/40 shadow-lg'
             : 'bg-emerald-50/90 border-emerald-400 ring-2 ring-emerald-400/40 shadow-lg'
           : 'bg-white border-slate-200/80 hover:border-slate-300 shadow-sm'
@@ -91,12 +93,12 @@ export const DialogueLineCard: React.FC<DialogueLineCardProps> = ({
         <div className="shrink-0 flex flex-col items-center gap-1.5">
           <div
             className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-bold shadow-md ${
-              isAlex
+              isPrimarySpeaker
                 ? 'bg-gradient-to-br from-amber-500 to-amber-700 text-white'
                 : 'bg-gradient-to-br from-emerald-500 to-teal-700 text-white'
             }`}
           >
-            {line.avatar || (isAlex ? '👨‍💼' : '👩‍💼')}
+            {line.avatar || (isPrimarySpeaker ? '👨‍💼' : '👩‍💼')}
           </div>
         </div>
 
@@ -106,7 +108,7 @@ export const DialogueLineCard: React.FC<DialogueLineCardProps> = ({
             <div className="flex items-center gap-2">
               <span
                 className={`font-bold text-sm tracking-wide ${
-                  isAlex ? 'text-amber-900' : 'text-emerald-900'
+                  isPrimarySpeaker ? 'text-amber-900' : 'text-emerald-900'
                 }`}
               >
                 {line.speaker}

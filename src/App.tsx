@@ -411,6 +411,7 @@ export default function App() {
                   isActive={isPlaying && currentLineIndex === idx}
                   isLoading={isLoadingAudio && currentLineIndex === idx}
                   showChinese={showChinese}
+                  accentSpeaker={script.lines[0]?.speaker || ''}
                   onPlayLine={(l, i) => playLine(l, i, false)}
                   onWordClick={handleWordClick}
                 />
