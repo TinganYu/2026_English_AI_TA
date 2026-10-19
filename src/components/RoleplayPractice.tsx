@@ -606,9 +606,17 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       return;
     }
     if (currentStepIndex >= lines.length - 1) {
-      if (transcript.trim()) {
-        setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
-      }
+      setCompletedScores((scores) => {
+        const nextScores = { ...scores };
+        studentLineIndexes.forEach((index) => {
+          if (typeof nextScores[index] !== 'number') {
+            nextScores[index] = index === currentStepIndex && transcript.trim()
+              ? practiceScore
+              : 0;
+          }
+        });
+        return nextScores;
+      });
       setShowCompletion(true);
       stopActiveCapture();
       return;
