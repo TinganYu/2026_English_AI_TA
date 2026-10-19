@@ -69,6 +69,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const [sttError, setSttError] = useState<string | null>(null);
   const [completedScores, setCompletedScores] = useState<Record<number, number>>({});
   const [hasHeardReferenceAudio, setHasHeardReferenceAudio] = useState(false);
+  const [referencePlaybackRequest, setReferencePlaybackRequest] = useState(0);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const isRecordingRef = useRef(false);
@@ -236,7 +237,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
         console.warn('Reference audio playback failed:', error);
       });
     }
-  }, [currentStepIndex, lines]);
+  }, [currentStepIndex, lines, referencePlaybackRequest]);
 
   useEffect(() => {
     if (isAudioPlaying && playingLineIndex === currentStepIndex) {
@@ -587,6 +588,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     setCompletedScores({});
     setShowCompletion(false);
     setCurrentStepIndex(0);
+    setReferencePlaybackRequest((request) => request + 1);
   };
 
   const handlePreviousStep = () => {
