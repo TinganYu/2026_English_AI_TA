@@ -566,7 +566,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   };
 
   const handlePlayPracticeWord = (word: string) => {
-    speakWithBrowserSynthesis(word, currentLine?.speaker || 'Emma', 0.7);
+    speakWithBrowserSynthesis(word, 'Emma', 0.7);
   };
 
   const resetCurrentTurn = () => {
@@ -855,12 +855,6 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
               )}
               <span>聽聽慢速示範發音</span>
             </button>
-            {!hasHeardReferenceAudio && !isCurrentLineAudioPlaying && (
-              <span className="text-xs text-amber-300">
-                請先聽完 AI 示範，才能開始錄音
-              </span>
-            )}
-
             {/* Practice Options for Student */}
             {isStudentTurn && (
               <div className="flex flex-wrap items-center gap-3">
