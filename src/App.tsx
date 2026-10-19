@@ -321,7 +321,9 @@ export default function App() {
                     : 'bg-emerald-50/70 border border-emerald-200/80'
                 }`}
               >
-                <div className={`w-12 h-12 rounded-2xl ${character.avatarColor} text-white flex items-center justify-center text-xl shrink-0 shadow-sm`}>
+                <div className={`w-12 h-12 rounded-2xl ${
+                  index === 0 ? 'bg-amber-600' : 'bg-emerald-600'
+                } text-white flex items-center justify-center text-xl shrink-0 shadow-sm`}>
                   {index === 0 ? '👨‍💼' : '👩‍💼'}
                 </div>
                 <div>

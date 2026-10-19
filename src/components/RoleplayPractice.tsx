@@ -69,6 +69,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const [sttError, setSttError] = useState<string | null>(null);
   const [completedScores, setCompletedScores] = useState<Record<number, number>>({});
   const [secondsOnTurn, setSecondsOnTurn] = useState(0);
+  const [hasHeardReferenceAudio, setHasHeardReferenceAudio] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const isRecordingRef = useRef(false);
@@ -85,6 +86,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const shouldContinueRecognitionRef = useRef(false);
   const recognitionRestartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const speechRecognitionErrorRef = useRef(false);
+  const referencePlaybackStartedRef = useRef(false);
 
   const currentLine = lines[currentStepIndex];
   const isStudentTurn = Boolean(currentLine);
@@ -111,6 +113,8 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   };
   const expandTokens = (text: string) =>
     text
+      .replace(/\bhard\s+cover\b/gi, 'hardcover')
+      .replace(/\bbook\s+store\b/gi, 'bookstore')
       .replace(/[-–—]/g, ' ')
       .split(/\s+/)
       .flatMap((word) => normalizeToken(word).split(/\s+/))
@@ -199,6 +203,29 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     practiceScore,
     transcript,
   ]);
+
+  useEffect(() => {
+    setHasHeardReferenceAudio(false);
+    referencePlaybackStartedRef.current = false;
+    if (currentLine) {
+      void onPlayLineAudio(currentLine).catch((error) => {
+        setSttError('示範音檔播放失敗，請按「聽聽慢速示範發音」重試。');
+        console.warn('Reference audio playback failed:', error);
+      });
+    }
+  }, [currentStepIndex]);
+
+  useEffect(() => {
+    if (isAudioPlaying && playingLineIndex === currentStepIndex) {
+      referencePlaybackStartedRef.current = true;
+    } else if (
+      referencePlaybackStartedRef.current &&
+      !isAudioPlaying &&
+      playingLineIndex === currentStepIndex
+    ) {
+      setHasHeardReferenceAudio(true);
+    }
+  }, [currentStepIndex, isAudioPlaying, playingLineIndex]);
 
   useEffect(() => {
     setSecondsOnTurn(0);
@@ -342,6 +369,10 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   };
 
   const handleStartRecording = async () => {
+    if (!hasHeardReferenceAudio) {
+      setSttError('請先聽完 AI 示範發音，再開始錄音。');
+      return;
+    }
     setIsSttOnly(false);
     isSttOnlyRef.current = false;
     setMicError(null);
@@ -483,6 +514,10 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   };
 
   const handleStartSttOnly = () => {
+    if (!hasHeardReferenceAudio) {
+      setSttError('請先聽完 AI 示範發音，再開始測試 STT。');
+      return;
+    }
     setMicError(null);
     setSttError(null);
     setTranscript('');
@@ -529,6 +564,8 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     recognitionResultOffsetRef.current = 0;
     setSttError(null);
     setSecondsOnTurn(0);
+    setHasHeardReferenceAudio(false);
+    referencePlaybackStartedRef.current = false;
   };
 
   const handleRestartPractice = () => {
@@ -546,6 +583,10 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   };
 
   const handleAdvanceStep = () => {
+    if (!hasHeardReferenceAudio) {
+      setSttError('請先聽完 AI 示範發音，再進入下一句。');
+      return;
+    }
     if (isCurrentLineAudioPlaying) {
       setSttError('請等示範音檔播放完畢後，再進入下一句。');
       return;
@@ -681,10 +722,15 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
             >
               &quot;
               {(() => {
+                const highlightTokens = new Set(
+                  (currentLine.highlightWords || []).flatMap((word) => expandTokens(word))
+                );
                 let wordIndex = 0;
                 return currentLine.text.split(/(\s+)/).map((part, index) => {
                 if (/^\s+$/.test(part)) return part;
-                const token = normalizeToken(part);
+                const isHighlighted = expandTokens(part).some((partToken) =>
+                  highlightTokens.has(partToken)
+                );
                 const isCorrect = Boolean(transcript) && matchedTargetIndexes.has(wordIndex);
                 wordIndex += 1;
                 const hasResult = Boolean(transcript);
@@ -698,9 +744,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                         ? isCorrect
                           ? 'text-emerald-300'
                           : 'text-rose-300 underline decoration-2'
-                        : currentLine.highlightWords?.some(
-                            (word) => normalizeToken(word) === token
-                          )
+                        : isHighlighted
                           ? 'text-amber-300'
                           : 'text-slate-400'
                     }`}
@@ -789,6 +833,11 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
               )}
               <span>聽聽慢速示範發音</span>
             </button>
+            {!hasHeardReferenceAudio && !isCurrentLineAudioPlaying && (
+              <span className="text-xs text-amber-300">
+                請先聽完 AI 示範，才能開始錄音
+              </span>
+            )}
 
             {/* Practice Options for Student */}
             {isStudentTurn && (
@@ -817,6 +866,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                   {!isRecording && !isSttOnly ? (
                   <button
                     onClick={handleStartRecording}
+                    disabled={!hasHeardReferenceAudio || isCurrentLineAudioPlaying}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-red-600/30 transition-transform active:scale-95"
                   >
                     <Mic className="w-4 h-4" />
@@ -835,6 +885,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                 {!isRecording && !isSttOnly && (
                   <button
                     onClick={handleStartSttOnly}
+                    disabled={!hasHeardReferenceAudio || isCurrentLineAudioPlaying}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600/80 hover:bg-violet-600 text-white font-semibold text-xs sm:text-sm transition-colors"
                     title="只測試手機語音辨識，不保存錄音"
                   >
@@ -918,6 +969,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
               <button
                 onClick={handleAdvanceStep}
                 disabled={
+                  !hasHeardReferenceAudio ||
                   isCurrentLineAudioPlaying ||
                   secondsOnTurn < 5
                 }
