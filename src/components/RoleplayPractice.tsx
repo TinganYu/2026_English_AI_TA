@@ -119,6 +119,9 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     text
       .replace(/\bhard\s+cover\b/gi, 'hardcover')
       .replace(/\bbook\s+store\b/gi, 'bookstore')
+      .replace(/\baudio\s+books\b/gi, 'audiobooks')
+      .replace(/\baudio\s+book\b/gi, 'audiobook')
+      .replace(/\bbest[-\s]+seller\b/gi, 'bestseller')
       .replace(/[-–—]/g, ' ')
       .split(/\s+/)
       .flatMap((word) => normalizeToken(word).split(/\s+/))
@@ -196,7 +199,6 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     lines
       .map((line, index) => (line.speaker === role ? completedScores[index] : undefined))
       .filter((score): score is number => typeof score === 'number');
-  const isPracticeComplete = currentStepIndex === lines.length - 1;
   const completedScoreValues = Object.values(completedScores);
   const completedAverage = completedScoreValues.length
     ? Math.round(
@@ -928,7 +930,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
               </div>
             </div>
 
-            {showCompletion && isPracticeComplete ? (
+            {showCompletion ? (
               <div className="w-full rounded-3xl border border-emerald-200 bg-emerald-50 p-6 text-center shadow-sm">
                 <h3 className="text-xl font-bold text-emerald-900">練習流程完成！</h3>
                 <p className="mt-2 text-sm text-emerald-800">
