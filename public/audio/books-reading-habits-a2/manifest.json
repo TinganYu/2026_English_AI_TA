@@ -25,7 +25,7 @@
   },
   "line-5": {
     "file": "line-5.wav",
-    "text": "Yes, it is! It is so good that I cannot put it down. But I notice you mostly read on a screen.",
+    "text": "Yes! It is so good that I cannot put it down. But I notice you mostly read on a screen.",
     "voice": "am_puck",
     "speed": 1
   },
@@ -37,7 +37,7 @@
   },
   "line-7": {
     "file": "line-7.wav",
-    "text": "That is true! I still prefer physical paperbacks, though. I love the smell of paper, and I can rest my eyes.",
+    "text": "That is true. I still prefer physical paperbacks, though. I love the smell of paper, and I can rest my eyes.",
     "voice": "am_puck",
     "speed": 1
   },

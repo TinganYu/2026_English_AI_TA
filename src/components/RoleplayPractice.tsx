@@ -643,6 +643,17 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
           依照對話順序練習所有角色的台詞。每一句都會使用 STT 計分，完成後可分別查看各角色的成績。
         </p>
 
+        <div className="mb-5 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 text-sm text-indigo-900">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-semibold">目前練習表現</span>
+            <span>
+              {completedAverage === null
+                ? `尚未完成（0 / ${lines.length} 句）`
+                : `平均 ${completedAverage}%（已完成 ${completedScoreValues.length} / ${lines.length} 句）`}
+            </span>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {roles.map((role, index) => (
             <div key={role} className={`p-4 rounded-2xl border-2 ${
@@ -926,17 +937,6 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                     <span>聽我的錄音 (Play My Voice)</span>
                   </button>
                 )}
-              </div>
-            )}
-
-            {completedAverage !== null && !(showCompletion && isPracticeComplete) && (
-              <div className="w-full rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-900">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-semibold">目前練習表現</span>
-                  <span>
-                    平均 {completedAverage}%（已完成 {completedScoreValues.length} / {lines.length} 句）
-                  </span>
-                </div>
               </div>
             )}
 
