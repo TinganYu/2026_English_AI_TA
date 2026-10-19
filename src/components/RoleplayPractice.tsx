@@ -68,7 +68,6 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
   const [isListening, setIsListening] = useState(false);
   const [sttError, setSttError] = useState<string | null>(null);
   const [completedScores, setCompletedScores] = useState<Record<number, number>>({});
-  const [secondsOnTurn, setSecondsOnTurn] = useState(0);
   const [hasHeardReferenceAudio, setHasHeardReferenceAudio] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -151,6 +150,21 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       return `${combined} ${removeTranscriptOverlap(combined, nextPart)}`.trim();
     }, '');
   const targetTokens = expandTokens(currentLine?.text || '');
+  const highlightedTargetIndexes = new Set<number>();
+  (currentLine?.highlightWords || []).forEach((highlightWord) => {
+    const highlightTokens = expandTokens(highlightWord);
+    for (let start = 0; start <= targetTokens.length - highlightTokens.length; start += 1) {
+      const matches = highlightTokens.every((token, offset) =>
+        tokensMatch(targetTokens[start + offset], token)
+      );
+      if (matches) {
+        highlightTokens.forEach((_, offset) => {
+          highlightedTargetIndexes.add(start + offset);
+        });
+        break;
+      }
+    }
+  });
   const recognizedTokens = expandTokens(transcript);
   const matchingPairs: Array<{ targetIndex: number; recognizedIndex: number }> = [];
   const unmatchedRecognizedIndexes = new Set(
@@ -228,14 +242,6 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       setHasHeardReferenceAudio(true);
     }
   }, [currentStepIndex, isAudioPlaying, playingLineIndex]);
-
-  useEffect(() => {
-    setSecondsOnTurn(0);
-    const timer = window.setInterval(() => {
-      setSecondsOnTurn((seconds) => Math.min(seconds + 1, 5));
-    }, 1000);
-    return () => window.clearInterval(timer);
-  }, [currentStepIndex]);
 
   // Cleanup on unmount or step change
   useEffect(() => {
@@ -565,7 +571,6 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     finalResultsRef.current = {};
     recognitionResultOffsetRef.current = 0;
     setSttError(null);
-    setSecondsOnTurn(0);
     setHasHeardReferenceAudio(false);
     referencePlaybackStartedRef.current = false;
   };
@@ -593,16 +598,17 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
       setSttError('請等示範音檔播放完畢後，再進入下一句。');
       return;
     }
-    if (secondsOnTurn < 5) {
-      return;
-    }
     if (currentStepIndex >= lines.length - 1) {
-      setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
+      if (transcript.trim()) {
+        setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
+      }
       setShowCompletion(true);
       stopActiveCapture();
       return;
     }
-    setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
+    if (transcript.trim()) {
+      setCompletedScores((scores) => ({ ...scores, [currentStepIndex]: practiceScore }));
+    }
     resetCurrentTurn();
     if (currentStepIndex < lines.length - 1) {
       const nextIndex = currentStepIndex + 1;
@@ -724,15 +730,10 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
             >
               &quot;
               {(() => {
-                const highlightTokens = new Set(
-                  (currentLine.highlightWords || []).flatMap((word) => expandTokens(word))
-                );
                 let wordIndex = 0;
                 return currentLine.text.split(/(\s+)/).map((part, index) => {
                 if (/^\s+$/.test(part)) return part;
-                const isHighlighted = expandTokens(part).some((partToken) =>
-                  highlightTokens.has(partToken)
-                );
+                const isHighlighted = highlightedTargetIndexes.has(wordIndex);
                 const isCorrect = Boolean(transcript) && matchedTargetIndexes.has(wordIndex);
                 wordIndex += 1;
                 const hasResult = Boolean(transcript);
@@ -869,7 +870,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                   <button
                     onClick={handleStartRecording}
                     disabled={!hasHeardReferenceAudio || isCurrentLineAudioPlaying}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-red-600/30 transition-transform active:scale-95"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-slate-700 disabled:text-slate-500 disabled:shadow-none disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm shadow-lg shadow-red-600/30 transition-transform active:scale-95"
                   >
                     <Mic className="w-4 h-4" />
                     <span>開始錄音 (Record)</span>
@@ -888,7 +889,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                   <button
                     onClick={handleStartSttOnly}
                     disabled={!hasHeardReferenceAudio || isCurrentLineAudioPlaying}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600/80 hover:bg-violet-600 text-white font-semibold text-xs sm:text-sm transition-colors"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600/80 hover:bg-violet-600 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm transition-colors"
                     title="只測試手機語音辨識，不保存錄音"
                   >
                     <Mic className="w-4 h-4" />
@@ -972,17 +973,14 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                 onClick={handleAdvanceStep}
                 disabled={
                   !hasHeardReferenceAudio ||
-                  isCurrentLineAudioPlaying ||
-                  secondsOnTurn < 5
+                  isCurrentLineAudioPlaying
                 }
-                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-30 disabled:hover:bg-violet-600 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-violet-600/30 transition-colors ml-auto"
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:bg-slate-700 disabled:text-slate-500 disabled:shadow-none disabled:cursor-not-allowed text-white font-semibold text-xs sm:text-sm shadow-lg shadow-violet-600/30 transition-colors ml-auto"
               >
                 <span>
                   {currentStepIndex >= lines.length - 1
                     ? '練習完成！'
-                    : secondsOnTurn < 5
-                      ? `請等待 ${5 - secondsOnTurn} 秒`
-                      : '下一句 (Next Turn)'}
+                    : '下一句 (Next Turn)'}
                 </span>
                 <ArrowRight className="w-4 h-4" />
               </button>
