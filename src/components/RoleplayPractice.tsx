@@ -189,20 +189,12 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     : 0;
   const practicePassed = Boolean(transcript.trim()) && practiceScore >= 50;
   const studentLineIndexes = lines.map((_, index) => index);
-  const completedStudentTurns = studentLineIndexes.filter(
-    (index) => typeof completedScores[index] === 'number'
-  );
-  const overallScores = studentLineIndexes
-    .map((index) => (index === currentStepIndex ? practiceScore : completedScores[index]))
-    .filter((score): score is number => typeof score === 'number');
   const roles = Array.from(new Set(lines.map((line) => line.speaker)));
   const roleScores = (role: string) =>
     lines
       .map((line, index) => (line.speaker === role ? completedScores[index] : undefined))
       .filter((score): score is number => typeof score === 'number');
-  const isPracticeComplete =
-    currentStepIndex === lines.length - 1 &&
-    completedStudentTurns.length === studentLineIndexes.length;
+  const isPracticeComplete = currentStepIndex === lines.length - 1;
   const completedScoreValues = Object.values(completedScores);
   const completedAverage = completedScoreValues.length
     ? Math.round(
@@ -610,13 +602,9 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
     if (currentStepIndex >= lines.length - 1) {
       setCompletedScores((scores) => {
         const nextScores = { ...scores };
-        studentLineIndexes.forEach((index) => {
-          if (typeof nextScores[index] !== 'number') {
-            nextScores[index] = index === currentStepIndex && transcript.trim()
-              ? practiceScore
-              : 0;
-          }
-        });
+        if (transcript.trim()) {
+          nextScores[currentStepIndex] = practiceScore;
+        }
         return nextScores;
       });
       setShowCompletion(true);
@@ -939,13 +927,16 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
 
             {showCompletion && isPracticeComplete ? (
               <div className="w-full rounded-3xl border border-emerald-200 bg-emerald-50 p-6 text-center shadow-sm">
-                <h3 className="text-xl font-bold text-emerald-900">口說練習完成！</h3>
+                <h3 className="text-xl font-bold text-emerald-900">練習流程完成！</h3>
                 <p className="mt-2 text-sm text-emerald-800">
-                  自動評分回合：
+                  實際朗讀回合：
                   <span className="ml-2 text-2xl font-extrabold">
-                    {overallScores.length
-                      ? `${Math.round(overallScores.reduce((sum, score) => sum + score, 0) / overallScores.length)}%`
+                    {completedScoreValues.length
+                      ? `${completedAverage}%`
                       : '無'}
+                  </span>
+                  <span className="block mt-1 text-xs text-emerald-700">
+                    已朗讀 {completedScoreValues.length} / {lines.length} 句
                   </span>
                 </p>
                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
@@ -982,7 +973,7 @@ export const RoleplayPractice: React.FC<RoleplayPracticeProps> = ({
                           {line.text}
                         </span>
                         <span className="font-bold">
-                          {`${score}%`}
+                          {typeof score === 'number' ? `${score}%` : '未練習'}
                         </span>
                       </div>
                       );
